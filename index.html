@@ -1136,9 +1136,9 @@ let adaptiveFactorInfluences = {
                         if (item.status === 'pending') {
                             stateBadgeContent = 'Pending';
                             stateBadgeClass = 'bg-gray-400';
-                        } else if (item.recommendedGroupId) {
+} else if (item.recommendedGroupId !== null) { // Explicitly check if it's NOT null
                             const recommendedType = allPredictionTypes.find(type => type.id === item.recommendedGroupId);
-                            const recommendedLabel = recommendedType?.displayLabel || item.recommendedGroupId;
+                            const recommendedLabel = recommendedType?.displayLabel || 'Unknown Group'; // Fallback to a clear string
                             const recommendedColorClass = recommendedType?.colorClass || 'bg-gray-400';
 
                             const recommendedHit = item.hitTypes.includes(item.recommendedGroupId);
@@ -1157,21 +1157,18 @@ let adaptiveFactorInfluences = {
                                 stateBadgeContent = `Reco: ${recommendedLabel} (Missed)`;
                                 stateBadgeClass = recommendedColorClass;
                             }
-                        } else {
+                        } else { // This block now specifically handles when item.recommendedGroupId IS null
                             if (item.status === 'success') {
-                                if (item.confirmedStreak >= 2) {
-                                    stateBadgeContent = `Confirmed by ${item.confirmedStreak}`;
-                                    const primaryHitType = item.hitTypes.length > 0 ? allPredictionTypes.find(type => type.id === item.hitTypes[0]) : null;
-                                    stateBadgeClass = primaryHitType ? primaryHitType.colorClass : 'bg-green-600';
-                                } else if (item.hitTypes && item.hitTypes.length > 0) {
-                                    stateBadgeContent = item.hitTypes.map(id => allPredictionTypes.find(type => type.id === id)?.displayLabel || id).join(', ');
-                                    stateBadgeClass = allPredictionTypes.find(type => type.id === item.hitTypes[0])?.colorClass || 'bg-green-600';
+                                // This is for cases where no recommendation was made, but *some* active group hit
+                                if (item.hitTypes && item.hitTypes.length > 0) {
+                                    stateBadgeContent = `Success (No Reco)`; // Or more specific if you want to show hit types
+                                    stateBadgeClass = 'bg-green-600';
                                 } else {
-                                    stateBadgeContent = 'Success';
+                                    stateBadgeContent = 'Success (No Reco)'; // Fallback for success without hit types
                                     stateBadgeClass = 'bg-green-600';
                                 }
-                            } else {
-                                stateBadgeContent = 'Failed';
+                            } else { // item.status === 'fail' and item.recommendedGroupId is null
+                                stateBadgeContent = 'Failed (No Reco)'; // Explicit message
                                 stateBadgeClass = 'bg-red-500';
                             }
                         }
