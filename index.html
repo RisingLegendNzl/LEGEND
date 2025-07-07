@@ -595,23 +595,23 @@
 
         const DEBUG_MODE = true; // Set to 'true' for debugging, 'false' for production.
 
-        const STRATEGY_CONFIG = {
-    learningRate_success: 0.22, // Adjusted
-    learningRate_failure: 0.02, // Adjusted
-    maxWeight: 3.5,             // Adjusted
-    minWeight: 0.01,            // Adjusted
-    decayFactor: 0.99,          // Adjusted
-    patternMinAttempts: 3,      // Adjusted
-    patternSuccessThreshold: 70,// Adjusted
-    triggerMinAttempts: 2,      // Adjusted
-    triggerSuccessThreshold: 65,// Adjusted
+const STRATEGY_CONFIG = {
+    learningRate_success: 0.30, // Adjusted
+    learningRate_failure: 0.03, // Adjusted
+    maxWeight: 5.0,             // Adjusted
+    minWeight: 0.03,            // Adjusted
+    decayFactor: 0.88,          // Adjusted
+    patternMinAttempts: 5,      // Adjusted
+    patternSuccessThreshold: 68,// Adjusted
+    triggerMinAttempts: 5,      // Adjusted
+    triggerSuccessThreshold: 63,// Adjusted
     // DETRIMENTAL_FAILURE_STREAK and DETRIMENTAL_PENALTY_MULTIPLIER are removed
     // as their logic is now superseded by the adaptiveFactorInfluences system.
 };
 
         // NEW: Adaptive Learning Rates for Factor Influences
-const ADAPTIVE_LEARNING_RATE_SUCCESS = 0.12; // Adjusted
-const ADAPTIVE_LEARNING_RATE_FAILURE = 0.05; // Adjusted
+const ADAPTIVE_LEARNING_RATE_SUCCESS = 0.15; // Adjusted
+const ADAPTIVE_LEARNING_RATE_FAILURE = 0.1;  // Adjusted
 const MIN_ADAPTIVE_INFLUENCE = 0.2; // Keep as is
 const MAX_ADAPTIVE_INFLUENCE = 2.5; // Keep as is
 
