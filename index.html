@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1566,7 +1567,9 @@ if (history.filter(item => item.status === 'success').length >= TRAINING_MIN_HIS
                     if (confirmedWinsLog.length >= 2) {
                         dom.number1.value = confirmedWinsLog[confirmedWinsLog.length - 2];
                         dom.number2.value = confirmedWinsLog[confirmedWinsLog.length - 1];
-                        setTimeout(() => handleCalculation(), 0);
+                        setTimeout(() => {
+        handleCalculation();
+    }, 100);
                     } else if (confirmedWinsLog.length === 1) {
                         dom.number1.value = winningNumber;
                         dom.number2.value = '';
