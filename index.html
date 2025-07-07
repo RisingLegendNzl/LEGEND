@@ -1671,7 +1671,7 @@ async function displayCalculationResult(diff, calcId) {
                             groupPocketDistanceDisplay = ` (<span class="text-pink-400">Dist: ${minHitZoneDist}</span>)`;
                         }
                         
-                        const mlProbability = predictionData?.groups?.[type.id] !== undefined ? ` (AI: ${(predictionData.groups[type.id] * 100).toFixed(1)}%)` : '';
+                        const mlProbability = (predictionData && predictionData.groups && predictionData.groups[type.id] !== undefined) ? ` (AI: ${(predictionData.groups[type.id] * 100).toFixed(1)}%)` : '';
 
                         // NEW: Streak Prediction Display
                         let streakPredictionHtml = '';
