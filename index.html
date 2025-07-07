@@ -620,6 +620,39 @@ const MAX_ADAPTIVE_INFLUENCE = 2.5; // Keep as is
 
         // Web Worker instance - this will handle all TF.js operations
         let aiWorker;
+                let history = [];
+        let confirmedWinsLog = [];
+        let isAiReady = false;
+        let strategyStates = {
+            weightedZone: { weight: 1.0, name: 'Neighbour Weighting' },
+            proximityBoost: { weight: 1.0, name: 'Proximity Boost' }
+        };
+        let patternMemory = {};
+        let adaptiveFactorInfluences = {
+            'Hit Rate': 1.0,
+            'Streak': 1.0,
+            'Proximity to Last Spin': 1.0,
+            'Hot Zone Weighting': 1.0,
+            'High AI Confidence': 1.0,
+            'Statistical Trends': 1.0
+        };
+        let currentVideoURL = null;
+
+        // IMPORTANT: THESE TOGGLE VALUES DETERMINE YOUR APP'S DEFAULT BEHAVIOR ON LOAD
+        // For the 89W/86L target on the second dataset, these were the original defaults:
+        let useTrendConfirmation = false,
+            useWeightedZone = true,
+            useProximityBoost = true,
+            usePocketDistance = false,
+            useLowestPocketDistance = false,
+            useAdvancedCalculations = false,
+            useDynamicStrategy = false,
+            useAdaptivePlay = false,
+            useTableChangeWarnings = false,
+            useDueForHit = false,
+            useNeighbourFocus = false,
+            useLessStrict = false,
+            useDynamicTerminalNeighbourCount = false;
 
         function toggleGuide(contentId) {
             const content = document.getElementById(contentId);
