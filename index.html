@@ -1268,7 +1268,7 @@ let adaptiveFactorInfluences = {
                     }
                     if (!lastCalcItem || lastCalcItem.status === 'pending') return;
 
-                    const recommendation = getRecommendation(calculateTrendStats(), getBoardStateStats(), runNeighbourAnalysis(false), lastCalcItem.difference, true, null, adaptiveFactorInfluences); // Pass adaptive influences
+                    const recommendation = getRecommendation(calculateTrendStats(), getBoardStateStats(), runNeighbourAnalysis(false), lastCalcItem.difference, lastCalcItem.num1, lastCalcItem.num2, true, null, adaptiveFactorInfluences); // Pass adaptive influences
                     const recommendedType = recommendation.bestCandidate?.type.id;
                     
                     if (!recommendedType) return;
@@ -1753,7 +1753,7 @@ async function displayCalculationResult(diff, calcId) {
                         const boardStatsAtCalc = getBoardStateStats();
                         const neighbourScoresAtCalc = runNeighbourAnalysis(false);
                         // Pass adaptiveFactorInfluences to getRecommendation
-                        const recommendationAtCalc = getRecommendation(trendStatsAtCalc, boardStatsAtCalc, neighbourScoresAtCalc, difference, false, null, adaptiveFactorInfluences);
+                        const recommendationAtCalc = getRecommendation(trendStatsAtCalc, boardStatsAtCalc, neighbourScoresAtCalc, difference, num1, num2, false, null, adaptiveFactorInfluences);
 
                         if (DEBUG_MODE) {
                             console.log("DEBUG handleCalculation: recommendationAtCalc.bestCandidate:", recommendationAtCalc.bestCandidate);
@@ -1824,11 +1824,7 @@ async function displayCalculationResult(diff, calcId) {
                         weightedZone: { weight: 1.0, name: 'Neighbour Weighting' },
                         proximityBoost: { weight: 1.0, name: 'Proximity Boost' }
                     };
-                    // IMPORTANT: Reset strategyStates and adaptiveFactorInfluences for a fresh simulation
-                    strategyStates = {
-                        weightedZone: { weight: 1.0, name: 'Neighbour Weighting' },
-                        proximityBoost: { weight: 1.0, name: 'Proximity Boost' }
-                    };
+
                     // Use the same structure for resetting adaptiveFactorInfluences as its initial declaration
                     adaptiveFactorInfluences = {
                         'Hit Rate': 1.0,
@@ -1869,15 +1865,17 @@ async function displayCalculationResult(diff, calcId) {
                         //    AI Probabilities are NOT used in back-testing unless you train/predict for EACH step,
                         //    which is computationally very expensive for historical analysis.
                         //    For accurate backtesting, AI predictions would need to be pre-generated or run per step.
-                        const recommendationAtCalc = getRecommendation(
-                            trendStatsAtCalc,
-                            boardStatsAtCalc,
-                            neighbourScoresAtCalc,
-                            diff,
-                            false, // isForWeightUpdate - we want full details
-                            null,  // mlProbabilities - AI is typically not used for retrospective simulation here
-                            adaptiveFactorInfluences // Pass current adaptive influences
-                        );
+const recommendationAtCalc = getRecommendation(
+                        trendStatsAtCalc,
+                        boardStatsAtCalc,
+                        neighbourScoresAtCalc,
+                        diff,
+                        num1, // Pass historical num1
+                        num2, // Pass historical num2
+                        false, // isForWeightUpdate - we want full details
+                        null,  // mlProbabilities - AI is typically not used for retrospective simulation here
+                        adaptiveFactorInfluences // Pass current adaptive influences
+                    );
                         
                         // 3. Create the history item with the simulated recommendation details.
                         const newHistoryItem = {
@@ -2327,14 +2325,11 @@ async function handleClearHistory() { // Made async
                         patternMemory = {};
                         // NEW: Reset adaptive influences on clear history
                         adaptiveFactorInfluences = {
-                            'High AI Confidence': 1.0,
-                            'AI-Driven Proximity': 1.0,
-                            'Pattern Detection': 1.0,
+                            'Hit Rate': 1.0,
+                            'Streak': 1.0,
                             'Proximity to Last Spin': 1.0,
                             'Hot Zone Weighting': 1.0,
-                            'Strong Historical Performance': 1.0,
-                            'Good Historical Hit Rate': 1.0,
-                            'Consistent Trend': 1.0,
+                            'High AI Confidence': 1.0,
                             'Statistical Trends': 1.0
                         };
                         isAiReady = false;
@@ -2412,7 +2407,7 @@ async function handleClearHistory() { // Made async
                                 (successfulOccurrences[type.id] / totalOccurrences[type.id] * 100) : 0;
                         });
 
-                        return { averages, currentStreaks, lastSuccessState, averageHitRates, totalOccurrences, successfulOccurrences };
+  return { averages, currentStreaks, lastSuccessState, averageHitRates, totalOccurrences, successfulOccurrences, streakData }; // <-- NOW ALSO RETURNS streakData
                     }
 
                     function getBoardStateStats(simulatedHistory = history) {
@@ -2441,9 +2436,10 @@ async function handleClearHistory() { // Made async
                         return stats;
                     }
 
-                    function getRecommendation(trendStats, boardStats, neighbourScores, diff, isForWeightUpdate = false, mlProbabilities = null, currentAdaptiveInfluences = adaptiveFactorInfluences) {
-                    const currentNum1 = parseInt(dom.number1.value, 10);
-                    const currentNum2 = parseInt(dom.number2.value, 10);
+                        function getRecommendation(trendStats, boardStats, neighbourScores, diff, inputNum1, inputNum2, isForWeightUpdate = false, mlProbabilities = null, currentAdaptiveInfluences = adaptiveFactorInfluences) {
+                    // Use the passed inputNum1 and inputNum2 instead of reading from DOM
+                    const currentNum1 = inputNum1;
+                    const currentNum2 = inputNum2;
                     const lastWinningNumber = confirmedWinsLog.length > 0 ? confirmedWinsLog[confirmedWinsLog.length - 1] : null;
 
                     let candidates = activePredictionTypes.map(type => {
