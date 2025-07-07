@@ -250,7 +250,7 @@
             overflow: hidden;
             opacity: 0;
             visibility: hidden;
-            display: none; /* Hidden by default */
+            display: block; /* Show when open */ 
             transition: max-height 0.5s ease-out, padding 0.5s ease-out, margin-top 0.5s ease-out, border-top-color 0.5s ease-out, opacity 0.3s ease-out, visibility 0.3s ease-out;
         }
         .ai-details-section.open {
@@ -656,16 +656,13 @@ let useTrendConfirmation = false,
 
                 let patternMemory = {};
                 // NEW: Adaptive influence scores for various factors, client-side managed
-                let adaptiveFactorInfluences = {
-                    'High AI Confidence': 1.0, // Initial influence for AI probability
-                    'AI-Driven Proximity': 1.0, // Initial influence for AI low pocket boost
-                    'Pattern Detection': 1.0, // Initial influence for pattern boosts
-                    'Proximity to Last Spin': 1.0, // Initial influence for Proximity Boost strategy
-                    'Hot Zone Weighting': 1.0, // Initial influence for Neighbour Score Weighting strategy
-                    'Strong Historical Performance': 1.0, // Initial influence for primary reason
-                    'Good Historical Hit Rate': 1.0, // Initial influence for primary reason
-                    'Consistent Trend': 1.0, // Initial influence for primary reason
-                    'Statistical Trends': 1.0 // Initial influence for primary reason (default)
+let adaptiveFactorInfluences = {
+                    'Hit Rate': 1.0, // Match the 'details.individualScores' key and 'details.reason' push
+                    'Streak': 1.0,   // Match the 'details.individualScores' key and 'details.reason' push
+                    'Proximity to Last Spin': 1.0, // Match 'details.individualScores' key and 'details.reason' push ('Proximity')
+                    'Hot Zone Weighting': 1.0, // Match 'details.individualScores' key and 'details.reason' push ('Neighbours')
+                    'High AI Confidence': 1.0, // Match 'details.individualScores' key and 'details.reason' push ('AI Conf')
+                    'Statistical Trends': 1.0 // General fallback
                 };
                 let currentVideoURL = null;
 
@@ -1764,10 +1761,19 @@ let useTrendConfirmation = false,
                         weightedZone: { weight: 1.0, name: 'Neighbour Weighting' },
                         proximityBoost: { weight: 1.0, name: 'Proximity Boost' }
                     };
+                    // IMPORTANT: Reset strategyStates and adaptiveFactorInfluences for a fresh simulation
+                    strategyStates = {
+                        weightedZone: { weight: 1.0, name: 'Neighbour Weighting' },
+                        proximityBoost: { weight: 1.0, name: 'Proximity Boost' }
+                    };
+                    // Use the same structure for resetting adaptiveFactorInfluences as its initial declaration
                     adaptiveFactorInfluences = {
-                        'High AI Confidence': 1.0, 'AI-Driven Proximity': 1.0, 'Pattern Detection': 1.0,
-                        'Proximity to Last Spin': 1.0, 'Hot Zone Weighting': 1.0, 'Strong Historical Performance': 1.0,
-                        'Good Historical Hit Rate': 1.0, 'Consistent Trend': 1.0, 'Statistical Trends': 1.0
+                        'Hit Rate': 1.0,
+                        'Streak': 1.0,
+                        'Proximity to Last Spin': 1.0,
+                        'Hot Zone Weighting': 1.0,
+                        'High AI Confidence': 1.0,
+                        'Statistical Trends': 1.0
                     };
 
                     const baseTimestamp = Date.now();
