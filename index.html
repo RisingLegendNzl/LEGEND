@@ -1628,14 +1628,21 @@ async function displayCalculationResult(diff, calcId) {
                     }
                     
                     const recommendation = getRecommendation(
-                        trendStats, 
-                        boardStats, 
-                        neighbourScores, 
-                        diff, 
-                        false, 
+                        trendStats,
+                        boardStats,
+                        neighbourScores,
+                        diff,
+                        parseInt(dom.number1.value, 10), // Ensure input numbers are passed correctly
+                        parseInt(dom.number2.value, 10), // Ensure input numbers are passed correctly
+                        false,
                         predictionData ? predictionData.groups : null,
-                        adaptiveFactorInfluences // Pass adaptive influences to getRecommendation
+                        adaptiveFactorInfluences
                     );
+
+                    if (DEBUG_MODE) {
+                        console.log("DEBUG displayCalculationResult: recommendation object:", recommendation);
+                        console.log("DEBUG displayCalculationResult: recommendation.html:", recommendation?.html); // Use optional chaining here
+                    }
 
                     let groupInfoHtml = '';
                     const num1Val = parseInt(dom.number1.value, 10);
@@ -2574,16 +2581,16 @@ async function handleClearHistory() { // Made async
                     // --- Signal Gating based on Point Thresholds (now driven by finalScore) ---
                     let signal = "Wait";
                     let signalColor = "text-gray-500";
-                    let reason = "(Low Confidence)";
+                    let reason = "(Low Confidence)"; // Default reason, will be updated.
 
                     if (bestCandidate.score > 50) { // Adjusted threshold for 'Strong Play'
                         signal = "Strong Play";
                         signalColor = "text-green-600";
-                        reason = `(${bestCandidate.details.primaryDrivingFactor})`;
+                        reason = `(${bestCandidate.details?.primaryDrivingFactor || 'Unknown Reason'})`; // Defensive check for primaryDrivingFactor
                     } else if (bestCandidate.score > 20) { // Adjusted threshold for 'Play'
                         signal = "Play";
                         signalColor = "text-purple-700";
-                        reason = `(${bestCandidate.details.primaryDrivingFactor})`;
+                        reason = `(${bestCandidate.details?.primaryDrivingFactor || 'Unknown Reason'})`; // Defensive check for primaryDrivingFactor
                     }
                     
                     // Trend Confirmation can still override
