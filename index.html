@@ -2337,143 +2337,196 @@ async function handleClearHistory() { // Made async
                     }
 
                     function getRecommendation(trendStats, boardStats, neighbourScores, diff, isForWeightUpdate = false, mlProbabilities = null, currentAdaptiveInfluences = adaptiveFactorInfluences) {
-                        const currentNum1 = parseInt(dom.number1.value, 10);
-                        const currentNum2 = parseInt(dom.number2.value, 10);
-                        const lastWinningNumber = confirmedWinsLog.length > 0 ? confirmedWinsLog[confirmedWinsLog.length - 1] : null;
+                    const currentNum1 = parseInt(dom.number1.value, 10);
+                    const currentNum2 = parseInt(dom.number2.value, 10);
+                    const lastWinningNumber = confirmedWinsLog.length > 0 ? confirmedWinsLog[confirmedWinsLog.length - 1] : null;
 
-                        // --- Additive Points-Based Scoring System ---
-                        let candidates = activePredictionTypes.map(type => {
-                            let score = 0;
-                             // This details object is now more comprehensive to prevent errors
-                            const details = {
-                                baseScore: 0,
-                                hitRate: (boardStats[type.id]?.total > 0 ? (boardStats[type.id]?.success / boardStats[type.id]?.total * 100) : 0),
-                                avgTrend: parseFloat(trendStats.averages[type.id]) || 0,
-                                currentStreak: trendStats.currentStreaks[type.id] || 0,
-                                predictiveDistance: Infinity,
-                                proximityBoostApplied: false,
-                                weightedZoneBoostApplied: false,
-                                patternBoostApplied: false, // Retained for future use
-                                patternBoostMultiplier: 1, // Retained for future use
-                                mlProbability: mlProbabilities ? mlProbabilities[type.id] : null,
-                                mlBoostApplied: false,
-                                aiLowPocketBoostApplied: false, // Retained for future use
-                                finalScore: 0,
-                                primaryDrivingFactor: "N/A", // Default value
-                                adaptiveInfluenceUsed: 1.0, // Default value
-                                confluenceBonus: 1.0, // Retained for future use
-                                reason: []
-                            };
+                    let candidates = activePredictionTypes.map(type => {
+                        // Initialize a detailed object for each candidate
+                        const details = {
+                            baseScore: 0,
+                            hitRate: (boardStats[type.id]?.total > 0 ? (boardStats[type.id]?.success / boardStats[type.id]?.total * 100) : 0),
+                            avgTrend: parseFloat(trendStats.averages[type.id]) || 0,
+                            currentStreak: trendStats.currentStreaks[type.id] || 0,
+                            predictiveDistance: Infinity, // For Proximity Boost
+                            proximityBoostApplied: false,
+                            weightedZoneBoostApplied: false,
+                            patternBoostApplied: false,
+                            patternBoostMultiplier: 1,
+                            mlProbability: mlProbabilities ? mlProbabilities[type.id] : null,
+                            mlBoostApplied: false,
+                            aiLowPocketBoostApplied: false,
+                            finalScore: 0,
+                            primaryDrivingFactor: "N/A",
+                            adaptiveInfluenceUsed: 1.0,
+                            confluenceBonus: 1.0,
+                            reason: [],
+                            individualScores: {} // To store raw scores before influence
+                        };
 
-                            // 1. Base Score from Hit Rate
-                            const hitRatePoints = Math.max(0, details.hitRate - 40) * 0.5;
-                            score += hitRatePoints;
-                            if (hitRatePoints > 1) details.reason.push(`Hit Rate`);
+                        const predictionTypeDefinition = allPredictionTypes.find(t => t.id === type.id);
+                        if (!predictionTypeDefinition) return null;
+                        const baseNum = predictionTypeDefinition.calculateBase(currentNum1, currentNum2);
+                        if (baseNum < 0 || baseNum > 36) return null;
 
-                            // 2. Momentum Score from Current Streak
-                            const streakPoints = Math.min(15, details.currentStreak * 5);
-                            score += streakPoints;
-                            if (streakPoints > 0) details.reason.push(`Streak`);
-                            
-                            const predictionTypeDefinition = allPredictionTypes.find(t => t.id === type.id);
-                            if (!predictionTypeDefinition) return null;
-                            const baseNum = predictionTypeDefinition.calculateBase(currentNum1, currentNum2);
-                            const terminals = terminalMapping?.[baseNum] || [];
-                            const hitZone = getHitZone(baseNum, terminals, lastWinningNumber);
+                        const terminals = terminalMapping?.[baseNum] || [];
+                        const hitZone = getHitZone(baseNum, terminals, lastWinningNumber);
 
-                            // 3. Proximity Score (IF TOGGLED)
-                            if (useProximityBoost && lastWinningNumber !== null) {
-                                for (const zoneNum of hitZone) {
-                                    const dist = calculatePocketDistance(zoneNum, lastWinningNumber);
-                                    if (dist < details.predictiveDistance) details.predictiveDistance = dist;
-                                }
-                                details.proximityBoostApplied = details.predictiveDistance <= 5;
-                                if (details.proximityBoostApplied) {
-                                    const proximityPoints = (5 - details.predictiveDistance) * 2;
-                                    score += proximityPoints;
-                                    details.reason.push(`Proximity`);
-                                }
-                            }
+                        // --- Calculate Raw Score Components ---
+                        let rawScore = 0;
 
-                            // 4. Neighbour Score (IF TOGGLED)
-                            if (useWeightedZone) {
-                                const neighbourScore = hitZone.reduce((sum, num) => sum + (neighbourScores[num]?.success || 0), 0);
-                                const neighbourPoints = Math.min(10, neighbourScore * 0.5);
-                                score += neighbourPoints;
-                                details.weightedZoneBoostApplied = neighbourPoints > 0;
-                                if (details.weightedZoneBoostApplied) details.reason.push(`Neighbours`);
-                            }
+                        // 1. Base Score from Hit Rate
+                        const rawHitRatePoints = Math.max(0, details.hitRate - 40) * 0.5;
+                        rawScore += rawHitRatePoints;
+                        details.individualScores['Hit Rate'] = rawHitRatePoints;
+                        if (rawHitRatePoints > 1) details.reason.push(`Hit Rate`);
 
-                            // 5. AI Confidence Score
-                            if (details.mlProbability !== null) {
-                                const aiPoints = details.mlProbability * 25;
-                                score += aiPoints;
-                                details.mlBoostApplied = aiPoints > 0;
-                                if (aiPoints > 5) details.reason.push(`AI Conf`);
-                            }
-                            
-                            details.finalScore = score;
-                            details.baseScore = hitRatePoints + streakPoints; // A more stable definition of baseScore
-                            details.primaryDrivingFactor = details.reason.length > 0 ? details.reason.join('/') : 'N/A';
-                            
-                            return { type, score, details };
-                        }).filter(c => c && c.details && !isNaN(c.score));
-
-                        if (candidates.length === 0) {
-                            return { html: '<span class="text-gray-500">Wait for Signal</span><br><span class="text-xs">Not enough data for a recommendation.</span>' };
-                        }
-
-                        candidates.sort((a, b) => b.score - a.score);
-                        let bestCandidate = candidates[0];
+                        // 2. Momentum Score from Current Streak
+                        const rawStreakPoints = Math.min(15, details.currentStreak * 5);
+                        rawScore += rawStreakPoints;
+                        details.individualScores['Streak'] = rawStreakPoints;
+                        if (rawStreakPoints > 0) details.reason.push(`Streak`);
                         
-                        // Handle cases where no recommendation can be made yet.
-                        if (!bestCandidate) {
-                             return { html: '<span class="text-gray-500">Wait for Signal</span><br><span class="text-xs">Not enough data for a recommendation.</span>', bestCandidate: null, details: null };
-                        }
-                        
-                        if (isForWeightUpdate) {
-                            return { bestCandidate };
-                        }
-
-                        // --- Signal Gating based on Point Thresholds ---
-                        let signal = "Wait";
-                        let signalColor = "text-gray-500";
-                        let reason = "(Low Confidence)";
-
-                        if (bestCandidate.score > 25) {
-                            signal = "Strong Play";
-                            signalColor = "text-green-600";
-                            reason = `(${bestCandidate.details.reason.slice(0, 2).join(', ')})`;
-                        } else if (bestCandidate.score > 10) {
-                            signal = "Play";
-                            signalColor = "text-purple-700";
-                            reason = `(${bestCandidate.details.reason.slice(0, 2).join(', ')})`;
-                        }
-                        
-                        if (useTrendConfirmation && !trendStats.lastSuccessState.includes(bestCandidate.type.id) && history.some(item => item.status === 'success')) {
-                            signal = 'Wait for Signal';
-                            signalColor = "text-gray-500";
-                            reason = `(Waiting for ${bestCandidate.type.label} to be confirmed)`;
-                        }
-
-                        // Final HTML construction
-                        let finalHtml = `<strong class="${signalColor}">${signal}:</strong> Play <strong style="color: ${bestCandidate.type.textColor};">${bestCandidate.type.label}</strong><br><span class="text-xs text-gray-500">${reason}</span>`;
-                        if (signal.includes('Wait')) {
-                             finalHtml = `<strong class="${signalColor}">${signal}</strong> <br><span class="text-xs text-gray-500">${reason}</span>`;
-                        }
-
-                        if (useNeighbourFocus && (signal === 'Play' || signal === 'Strong Play')) {
-                            const baseNum = bestCandidate.type.calculateBase(currentNum1, currentNum2);
-                            const terminals = terminalMapping?.[baseNum] || [];
-                            const hitZone = getHitZone(baseNum, terminals, lastWinningNumber);
-                            const hotNumbers = hitZone.map(num => ({num, score: neighbourScores[num]?.success || 0 })).sort((a,b) => b.score - a.score).slice(0,5).map(n => n.num);
-                            if (hotNumbers.length > 0 && hotNumbers.some(n => neighbourScores[n]?.success > 0)) {
-                                finalHtml += `<br><span class="text-xs text-gray-600">Focus on hot neighbours: <strong>${hotNumbers.join(', ')}</strong></span>`;
+                        // 3. Proximity Score (IF TOGGLED)
+                        if (useProximityBoost && lastWinningNumber !== null) {
+                            for (const zoneNum of hitZone) {
+                                const dist = calculatePocketDistance(zoneNum, lastWinningNumber);
+                                if (dist < details.predictiveDistance) details.predictiveDistance = dist;
+                            }
+                            details.proximityBoostApplied = details.predictiveDistance <= 5;
+                            if (details.proximityBoostApplied) {
+                                const rawProximityPoints = (5 - details.predictiveDistance) * 2;
+                                rawScore += rawProximityPoints;
+                                details.individualScores['Proximity to Last Spin'] = rawProximityPoints;
+                                details.reason.push(`Proximity`);
                             }
                         }
+
+                        // 4. Neighbour Score (IF TOGGLED)
+                        if (useWeightedZone) {
+                            const neighbourWeightedScore = hitZone.reduce((sum, num) => sum + (neighbourScores[num]?.success || 0), 0);
+                            const rawNeighbourPoints = Math.min(10, neighbourWeightedScore * 0.5);
+                            rawScore += rawNeighbourPoints;
+                            details.individualScores['Hot Zone Weighting'] = rawNeighbourPoints;
+                            details.weightedZoneBoostApplied = rawNeighbourPoints > 0;
+                            if (details.weightedZoneBoostApplied) details.reason.push(`Neighbours`);
+                        }
+
+                        // 5. AI Confidence Score
+                        if (details.mlProbability !== null) {
+                            const rawAiPoints = details.mlProbability * 25;
+                            rawScore += rawAiPoints;
+                            details.individualScores['High AI Confidence'] = rawAiPoints;
+                            details.mlBoostApplied = rawAiPoints > 0;
+                            if (rawAiPoints > 5) details.reason.push(`AI Conf`);
+                        }
                         
-                        return { html: finalHtml, bestCandidate, details: bestCandidate.details };
+                        // --- APPLY ADAPTIVE INFLUENCES ---
+                        let finalCalculatedScore = 0;
+                        let mostInfluentialFactor = "N/A";
+                        let highestInfluencedScore = 0;
+
+                        // Iterate through known adaptive factors and apply their influence
+                        for (const factorName in currentAdaptiveInfluences) {
+                            const influence = currentAdaptiveInfluences[factorName];
+                            let factorScore = details.individualScores[factorName] || 0; // Get raw score for this factor
+
+                            const influencedScore = factorScore * influence;
+                            finalCalculatedScore += influencedScore; // Sum up influenced scores
+
+                            // Track the most influential factor
+                            if (influencedScore > highestInfluencedScore) {
+                                highestInfluencedScore = influencedScore;
+                                mostInfluentialFactor = factorName;
+                            }
+                        }
+
+                        // If no specific factor dominated, fall back to general hit rate/streak
+                        if (mostInfluentialFactor === "N/A" && details.reason.length > 0) {
+                            mostInfluentialFactor = details.reason[0]; // Take the first reason as primary if no adaptive factor dominated
+                        } else if (mostInfluentialFactor === "N/A") {
+                            mostInfluentialFactor = "Statistical Trends"; // Fallback if no specific reason
+                        }
+
+                        details.finalScore = finalCalculatedScore; // This is the score that will be used for ranking
+                        details.baseScore = rawHitRatePoints + rawStreakPoints; // Still a 'base' of the raw values
+                        details.primaryDrivingFactor = mostInfluentialFactor;
+                        details.adaptiveInfluenceUsed = currentAdaptiveInfluences[mostInfluentialFactor] || 1.0;
+
+                        return { type, score: details.finalScore, details }; // Return the FINAL, influenced score
+                    }).filter(c => c && !isNaN(c.score)); // Filter out null candidates or those with NaN scores
+
+                    if (candidates.length === 0) {
+                        return { html: '<span class="text-gray-500">Wait for Signal</span><br><span class="text-xs">Not enough data for a recommendation.</span>', bestCandidate: null, details: null };
                     }
+
+                    candidates.sort((a, b) => b.score - a.score);
+                    let bestCandidate = candidates[0];
+                    
+                    // Handle cases where the top candidate still has a very low or negative score,
+                    // indicating no strong signal.
+                    if (bestCandidate.score <= 0) { // Or a higher threshold if desired, e.g., 5 points
+                         return { html: '<span class="text-gray-500">Wait for Signal</span><br><span class="text-xs">No strong recommendations based on current data.</span>', bestCandidate: null, details: null };
+                    }
+
+                    if (isForWeightUpdate) {
+                        return { bestCandidate };
+                    }
+
+                    // --- Signal Gating based on Point Thresholds (now driven by finalScore) ---
+                    let signal = "Wait";
+                    let signalColor = "text-gray-500";
+                    let reason = "(Low Confidence)";
+
+                    if (bestCandidate.score > 50) { // Adjusted threshold for 'Strong Play'
+                        signal = "Strong Play";
+                        signalColor = "text-green-600";
+                        reason = `(${bestCandidate.details.primaryDrivingFactor})`;
+                    } else if (bestCandidate.score > 20) { // Adjusted threshold for 'Play'
+                        signal = "Play";
+                        signalColor = "text-purple-700";
+                        reason = `(${bestCandidate.details.primaryDrivingFactor})`;
+                    }
+                    
+                    // Trend Confirmation can still override
+                    if (useTrendConfirmation && trendStats.lastSuccessState.length > 0 && !trendStats.lastSuccessState.includes(bestCandidate.type.id)) {
+                         if (DEBUG_MODE) { console.log('DEBUG: Trend confirmation blocking play.'); }
+                        signal = 'Wait for Signal';
+                        signalColor = "text-gray-500";
+                        reason = `(Waiting for ${bestCandidate.type.label} trend confirmation)`;
+                    } else if (useTrendConfirmation && trendStats.lastSuccessState.length === 0 && history.filter(item => item.status === 'success').length > 0) {
+                        // If no last success state, but there is history, means trend cannot be established
+                        signal = 'Wait for Signal';
+                        signalColor = "text-gray-500";
+                        reason = `(No established trend to confirm)`;
+                    }
+
+
+                    // Final HTML construction
+                    let finalHtml = `<strong class="${signalColor}">${signal}:</strong> Play <strong style="color: ${bestCandidate.type.textColor};">${bestCandidate.type.label}</strong><br><span class="text-xs text-gray-500">${reason}</span>`;
+                    if (signal.includes('Wait')) {
+                         finalHtml = `<strong class="${signalColor}">${signal}</strong> <br><span class="text-xs text-gray-500">${reason}</span>`;
+                    }
+
+                    if (useNeighbourFocus && (signal === 'Play' || signal === 'Strong Play')) {
+                        const baseNum = bestCandidate.type.calculateBase(currentNum1, currentNum2);
+                        const terminals = terminalMapping?.[baseNum] || [];
+                        const hitZone = getHitZone(baseNum, terminals, lastWinningNumber);
+                        // Filter for only numbers with positive scores (hot neighbours)
+                        const hotNumbers = hitZone
+                            .map(num => ({num, score: neighbourScores[num]?.success || 0 }))
+                            .filter(n => n.score > 0) // Only include "hot" neighbours
+                            .sort((a,b) => b.score - a.score)
+                            .slice(0,5)
+                            .map(n => n.num);
+
+                        if (hotNumbers.length > 0) { // Only show if there are actual hot numbers
+                            finalHtml += `<br><span class="text-xs text-gray-600">Focus on hot neighbours: <strong>${hotNumbers.join(', ')}</strong></span>`;
+                        }
+                    }
+                    
+                    return { html: finalHtml, bestCandidate, details: bestCandidate.details };
+                }
                     function runBoardStateAnalysis(simulatedHistory = history) {
                         if (DEBUG_MODE) {
                             console.log('Running board state analysis...');
