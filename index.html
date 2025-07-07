@@ -596,24 +596,24 @@
         const DEBUG_MODE = true; // Set to 'true' for debugging, 'false' for production.
 
         const STRATEGY_CONFIG = {
-            learningRate_success: 0.1,
-            learningRate_failure: 0.05,
-            maxWeight: 2.5,
-            minWeight: 0.1,
-            decayFactor: 0.98,
-            patternMinAttempts: 5,
-            patternSuccessThreshold: 65,
-            triggerMinAttempts: 4,
-            triggerSuccessThreshold: 60,
-            // DETRIMENTAL_FAILURE_STREAK and DETRIMENTAL_PENALTY_MULTIPLIER are removed
-            // as their logic is now superseded by the adaptiveFactorInfluences system.
-        };
+    learningRate_success: 0.22, // Adjusted
+    learningRate_failure: 0.02, // Adjusted
+    maxWeight: 3.5,             // Adjusted
+    minWeight: 0.01,            // Adjusted
+    decayFactor: 0.99,          // Adjusted
+    patternMinAttempts: 3,      // Adjusted
+    patternSuccessThreshold: 70,// Adjusted
+    triggerMinAttempts: 2,      // Adjusted
+    triggerSuccessThreshold: 65,// Adjusted
+    // DETRIMENTAL_FAILURE_STREAK and DETRIMENTAL_PENALTY_MULTIPLIER are removed
+    // as their logic is now superseded by the adaptiveFactorInfluences system.
+};
 
         // NEW: Adaptive Learning Rates for Factor Influences
-        const ADAPTIVE_LEARNING_RATE_SUCCESS = 0.05; // How much to increase influence on success
-        const ADAPTIVE_LEARNING_RATE_FAILURE = 0.1; // How much to decrease influence on failure
-        const MIN_ADAPTIVE_INFLUENCE = 0.2; // Minimum influence a factor can have (e.g., 0.2x original impact)
-        const MAX_ADAPTIVE_INFLUENCE = 2.5; // Maximum influence a factor can have (e.g., 2.5x original impact)
+const ADAPTIVE_LEARNING_RATE_SUCCESS = 0.12; // Adjusted
+const ADAPTIVE_LEARNING_RATE_FAILURE = 0.05; // Adjusted
+const MIN_ADAPTIVE_INFLUENCE = 0.2; // Keep as is
+const MAX_ADAPTIVE_INFLUENCE = 2.5; // Keep as is
 
         // TensorFlow.js specific configurations (constants for main thread's use)
         const TRAINING_MIN_HISTORY = 10; // Minimum history items needed to train the model
@@ -632,10 +632,19 @@
             try {
                 let history = [];
                 let confirmedWinsLog = [];
-                let useTrendConfirmation = false, useWeightedZone = true, useProximityBoost = true, usePocketDistance = false, useLowestPocketDistance = false, useAdvancedCalculations = false;
-                let useNeighbourFocus = false, useDueForHit = false, useLessStrict = false;
-                let useDynamicStrategy = false, useAdaptivePlay = false, useTableChangeWarnings = false;
-                let useDynamicTerminalNeighbourCount = false;
+let useTrendConfirmation = true,   // Changed from false
+    useWeightedZone = true,
+    useProximityBoost = false,     // Changed from true
+    usePocketDistance = false,
+    useLowestPocketDistance = false,
+    useAdvancedCalculations = true,  // Changed from false
+    useDynamicStrategy = true,     // Changed from false
+    useAdaptivePlay = true,        // Changed from false
+    useTableChangeWarnings = false,
+    useDueForHit = false,
+    useNeighbourFocus = true,      // Changed from false
+    useLessStrict = false,
+    useDynamicTerminalNeighbourCount = true; // Changed from false
                 
                 let isAiReady = false; // Status of local TF.js model
 
@@ -867,19 +876,19 @@
 
                 function handlePresetSelection(preset) {
                     if (preset === 'highestWinRate') {
-                        useTrendConfirmation = false;
-                        useWeightedZone = true;
-                        useProximityBoost = true;
-                        usePocketDistance = false;
-                        useLowestPocketDistance = false;
-                        useAdvancedCalculations = false;
-                        useDynamicStrategy = false;
-                        useAdaptivePlay = false;
-                        useTableChangeWarnings = false;
-                        useDueForHit = false;
-                        useNeighbourFocus = false;
-                        useLessStrict = false;
-                        useDynamicTerminalNeighbourCount = false;
+                        useTrendConfirmation = true;   // New Optimal Setting
+        useWeightedZone = true;        // Keep as is
+        useProximityBoost = false;     // New Optimal Setting
+        usePocketDistance = false;     // Keep as is
+        useLowestPocketDistance = false; // Keep as is
+        useAdvancedCalculations = true;  // New Optimal Setting
+        useDynamicStrategy = true;     // New Optimal Setting
+        useAdaptivePlay = true;        // New Optimal Setting
+        useTableChangeWarnings = false; // Keep as is
+        useDueForHit = false;          // Keep as is
+        useNeighbourFocus = true;      // New Optimal Setting
+        useLessStrict = false;         // Keep as is
+        useDynamicTerminalNeighbourCount = true; // New Optimal Setting
                     } else if (preset === 'balancedSafe') {
                         useTrendConfirmation = true;
                         useWeightedZone = true;
