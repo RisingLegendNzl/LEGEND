@@ -632,19 +632,20 @@ const MAX_ADAPTIVE_INFLUENCE = 2.5; // Keep as is
             try {
                 let history = [];
                 let confirmedWinsLog = [];
-let useTrendConfirmation = true,   // Changed from false
+// In index.html, within DOMContentLoaded
+let useTrendConfirmation = false,
     useWeightedZone = true,
-    useProximityBoost = false,     // Changed from true
+    useProximityBoost = true,
     usePocketDistance = false,
     useLowestPocketDistance = false,
-    useAdvancedCalculations = true,  // Changed from false
-    useDynamicStrategy = true,     // Changed from false
-    useAdaptivePlay = true,        // Changed from false
+    useAdvancedCalculations = false,
+    useDynamicStrategy = false,
+    useAdaptivePlay = false,
     useTableChangeWarnings = false,
     useDueForHit = false,
-    useNeighbourFocus = true,      // Changed from false
+    useNeighbourFocus = false,
     useLessStrict = false,
-    useDynamicTerminalNeighbourCount = true; // Changed from false
+    useDynamicTerminalNeighbourCount = false;
                 
                 let isAiReady = false; // Status of local TF.js model
 
@@ -1729,6 +1730,7 @@ let useTrendConfirmation = true,   // Changed from false
                 }
                 
                 // THIS IS THE CORRECTED FUNCTION
+// THIS IS THE CRITICALLY CORRECTED handleHistoricalAnalysis FUNCTION
                 async function handleHistoricalAnalysis() {
                     if (DEBUG_MODE) {
                         console.log('Analyze Historical Data button clicked with new sequencing and simulation logic.');
@@ -1753,9 +1755,15 @@ let useTrendConfirmation = true,   // Changed from false
                     }
                     
                     // --- RESET STATE FOR A CLEAN ANALYSIS ---
-                    history = [];
-                    confirmedWinsLog = [];
-                    patternMemory = {};
+                    history = []; // Global history array is cleared
+                    confirmedWinsLog = []; // Global confirmed wins log is cleared
+                    patternMemory = {}; // Global pattern memory is cleared
+                    
+                    // IMPORTANT: Reset strategyStates and adaptiveFactorInfluences for a fresh simulation
+                    strategyStates = {
+                        weightedZone: { weight: 1.0, name: 'Neighbour Weighting' },
+                        proximityBoost: { weight: 1.0, name: 'Proximity Boost' }
+                    };
                     adaptiveFactorInfluences = {
                         'High AI Confidence': 1.0, 'AI-Driven Proximity': 1.0, 'Pattern Detection': 1.0,
                         'Proximity to Last Spin': 1.0, 'Hot Zone Weighting': 1.0, 'Strong Historical Performance': 1.0,
@@ -1763,68 +1771,96 @@ let useTrendConfirmation = true,   // Changed from false
                     };
 
                     const baseTimestamp = Date.now();
-                    let tempHistory = []; // We will build the history chronologically (oldest to newest) first.
+                    
+                    // Reverse the input array so we can loop from oldest to newest correctly
+                    // For example, if input is [3, 2, 1], we process 1, then 2, then 3.
+                    const historicalSpinsChronological = [];
+                    for (let i = numbers.length - 1; i >= 0; i--) {
+                        historicalSpinsChronological.push(numbers[i]);
+                    }
 
-                    // Reverse the input array so we can loop from oldest to newest
-                    const reversedNumbers = [...numbers].reverse();
 
-                    for (let i = 0; i <= reversedNumbers.length - 3; i++) {
-                        const olderNumber = reversedNumbers[i];
-                        const newerNumber = reversedNumbers[i + 1];
-                        const winningNumber = reversedNumbers[i + 2];
-                        const diff = Math.abs(newerNumber - olderNumber);
+                    // Loop through the historical data, processing it as if it were live spins
+                    // Each iteration (i) represents the spin *before* the winningNumber (at i+2)
+                    for (let i = 0; i <= historicalSpinsChronological.length - 3; i++) {
+                        const num1 = historicalSpinsChronological[i];       // The 'number to subtract' for current calc
+                        const num2 = historicalSpinsChronological[i + 1];   // The 'subtract from' for current calc
+                        const winningNumber = historicalSpinsChronological[i + 2]; // The actual winning number for THIS spin
 
-                        // --- SIMULATION LOGIC ---
-                        // 1. Get the state of the world *before* this spin happened.
-                        //    'tempHistory' contains all previously processed (older) spins.
-                        const historySnapshot = [...tempHistory];
-                        const trendStatsAtCalc = calculateTrendStats(historySnapshot);
-                        const boardStatsAtCalc = getBoardStateStats(historySnapshot);
-                        const neighbourScoresAtCalc = runNeighbourAnalysis(false, historySnapshot);
+                        const diff = Math.abs(num2 - num1);
+                        const calcId = baseTimestamp + i; // Unique ID for this simulated calculation
+
+                        // 1. Get the state of the world *before* this spin happened (based on 'history' accumulated so far).
+                        //    NOTE: The global 'history' array *is* the running history for this simulation.
+                        const trendStatsAtCalc = calculateTrendStats(history); // Use current global history
+                        const boardStatsAtCalc = getBoardStateStats(history); // Use current global history
+                        const neighbourScoresAtCalc = runNeighbourAnalysis(false, history); // Use current global history
 
                         // 2. Simulate the recommendation for this specific moment in time.
+                        //    AI Probabilities are NOT used in back-testing unless you train/predict for EACH step,
+                        //    which is computationally very expensive for historical analysis.
+                        //    For accurate backtesting, AI predictions would need to be pre-generated or run per step.
                         const recommendationAtCalc = getRecommendation(
                             trendStatsAtCalc,
                             boardStatsAtCalc,
                             neighbourScoresAtCalc,
                             diff,
-                            false, // isForWeightUpdate
-                            null,  // mlProbabilities (AI is not used in this back-test)
-                            adaptiveFactorInfluences
+                            false, // isForWeightUpdate - we want full details
+                            null,  // mlProbabilities - AI is typically not used for retrospective simulation here
+                            adaptiveFactorInfluences // Pass current adaptive influences
                         );
-
+                        
                         // 3. Create the history item with the simulated recommendation details.
-                        const item = {
-                            id: baseTimestamp + i,
-                            num1: olderNumber,
-                            num2: newerNumber,
+                        const newHistoryItem = {
+                            id: calcId,
+                            num1: num1,
+                            num2: num2,
                             difference: diff,
-                            status: 'pending',
+                            status: 'pending', // Will be updated by evaluateCalculationStatus
                             hitTypes: [],
                             typeSuccessStatus: {},
                             confirmedStreak: 0,
                             pocketDistance: null,
-                            winningNumber: winningNumber,
-                            // --- APPLY THE SIMULATED RECOMMENDATION ---
+                            winningNumber: winningNumber, // The actual winning number for this step
                             recommendedGroupId: recommendationAtCalc.bestCandidate ? recommendationAtCalc.bestCandidate.type.id : null,
                             recommendationDetails: recommendationAtCalc.bestCandidate ? recommendationAtCalc.bestCandidate.details : null,
                             recommendedGroupPocketDistance: null
                         };
+
+                        // 4. Evaluate if the recommendation was a hit or miss based on the actual winning number
+                        evaluateCalculationStatus(newHistoryItem, winningNumber);
                         
-                        // 4. Evaluate if the recommendation was a hit or miss
-                        evaluateCalculationStatus(item, winningNumber);
+                        // 5. Add the fully processed item to the global 'history' array
+                        history.push(newHistoryItem);
+
+                        // 6. Update strategy weights and adaptive influences based on this spin's outcome
+                        //    This is CRITICAL for the simulation to reflect dynamic learning.
+                        updateStrategyWeights(newHistoryItem); // Will update strategyStates
                         
-                        // 5. Add the fully processed item to our history for the next iteration
-                        tempHistory.push(item);
+                        // Manually trigger adaptive factor influence update as it's separate from updateStrategyWeights
+                        if (newHistoryItem.recommendedGroupId && newHistoryItem.recommendationDetails?.primaryDrivingFactor) {
+                            const primaryFactor = newHistoryItem.recommendationDetails.primaryDrivingFactor;
+                            if (adaptiveFactorInfluences[primaryFactor] === undefined) {
+                                adaptiveFactorInfluences[primaryFactor] = 1.0;
+                            }
+                            const recommendedHit = newHistoryItem.hitTypes.includes(newHistoryItem.recommendedGroupId);
+                            if (recommendedHit) {
+                                adaptiveFactorInfluences[primaryFactor] = Math.min(MAX_ADAPTIVE_INFLUENCE, adaptiveFactorInfluences[primaryFactor] + ADAPTIVE_LEARNING_RATE_SUCCESS);
+                            } else {
+                                adaptiveFactorInfluences[primaryFactor] = Math.max(MIN_ADAPTIVE_INFLUENCE, adaptiveFactorInfluences[primaryFactor] - ADAPTIVE_LEARNING_RATE_FAILURE);
+                            }
+                        }
+
+                        // Update confirmedWinsLog for getRecommendation's `lastWinningNumber` logic for the *next* iteration
+                        if (!confirmedWinsLog.includes(winningNumber)) {
+                            confirmedWinsLog.push(winningNumber);
+                        }
                     }
 
-                    // --- FINALIZATION ---
-                    // The tempHistory is now complete and in oldest-to-newest order.
-                    history = tempHistory;
-
-                    // Run all post-processing on the complete history
+                    // --- FINAL POST-PROCESSING ON COMPLETE SIMULATED HISTORY ---
+                    // Calculate confirmed streak for all items
                     history.forEach((item, i) => {
-                        const historySliceForStreak = history.slice(0, i + 1);
+                        const historySliceForStreak = history.slice(0, i + 1); // Slice up to current item
                         const trendStats = calculateTrendStats(historySliceForStreak);
                         let maxConfirmedStreak = 0;
                         if (item.status === 'success' && item.typeSuccessStatus) {
@@ -1836,20 +1872,20 @@ let useTrendConfirmation = true,   // Changed from false
                         }
                         item.confirmedStreak = maxConfirmedStreak;
                     });
-
-                    labelHistoryFailures(history);
                     
-                    // Reverse the final history array to display newest-first in the UI
+                    labelHistoryFailures(history); // Labels failure modes for the full history
+
+                    // Reverse the final history array for UI display (newest first)
                     history.reverse(); 
 
-                    // Update the confirmed wins log with all numbers from the analysis
-                    confirmedWinsLog = history.map(item => item.winningNumber).filter(n => n !== null);
+                    // Ensure confirmedWinsLog has correct chronological sequence for rendering history item details
+                    confirmedWinsLog = history.map(item => item.winningNumber).filter(n => n !== null).reverse(); // Reverse back to chronological
 
                     dom.historicalAnalysisMessage.textContent = `Successfully processed and simulated ${history.length} historical entries.`;
-                    runAllAnalyses();
-                    renderHistory(); // This will now render the full details
-                    drawRouletteWheel();
-                    saveState();
+                    runAllAnalyses(); // Updates UI analysis panels and strategy weights
+                    renderHistory(); // Renders the history list with full details and updates win/loss counters
+                    drawRouletteWheel(); // Updates wheel visual
+                    saveState(); // Saves the final state
 
                     if (DEBUG_MODE) {
                         console.log('Historical analysis with simulation complete. Final history array:', history);
