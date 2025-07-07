@@ -1514,13 +1514,21 @@ let adaptiveFactorInfluences = {
                     runAllAnalyses();
                     renderHistory();
 
-                    if (history.filter(item => item.status === 'success').length >= TRAINING_MIN_HISTORY) {
+if (history.filter(item => item.status === 'success').length >= TRAINING_MIN_HISTORY) {
                         if (DEBUG_MODE) {
                             console.log('Main: Requesting worker to train after confirmation.');
                         }
                         isAiReady = false;
                         dom.aiModelStatus.textContent = 'AI Model: Training...';
-                        aiWorker.postMessage({ type: 'train', payload: { history: history } });
+                        const trendStatsForTrain = calculateTrendStats(); // Get latest trend stats for worker
+                        aiWorker.postMessage({ 
+                            type: 'train', 
+                            payload: { 
+                                history: history,
+                                // NEW: Send historical streak data on train
+                                historicalStreakData: trendStatsForTrain.streakData
+                            } 
+                        });
                     } else {
                         dom.aiModelStatus.textContent = `AI Model: Need at least ${TRAINING_MIN_HISTORY} confirmed spins to train. (Current: ${history.filter(item => item.status === 'success').length})`;
                     }
@@ -1540,10 +1548,11 @@ let adaptiveFactorInfluences = {
                     saveState();
                 }
 
-                async function getPredictionProbabilitiesFromWorker() {
+async function getPredictionProbabilitiesFromWorker() {
                     if (DEBUG_MODE) {
                         console.log('Main: Requesting prediction from worker.');
                     }
+                    const trendStatsForWorker = calculateTrendStats(); // Calculate trend stats to get streak data
                     return new Promise((resolve) => {
                         const handleWorkerMessage = (event) => {
                             if (event.data.type === 'predictionResult') {
@@ -1555,15 +1564,23 @@ let adaptiveFactorInfluences = {
                             }
                         };
                         aiWorker.addEventListener('message', handleWorkerMessage);
-                        aiWorker.postMessage({ type: 'predict', payload: { history: history } });
+                        aiWorker.postMessage({
+                            type: 'predict',
+                            payload: {
+                                history: history,
+                                // NEW: Send current streak data for AI streak prediction
+                                currentStreaksData: trendStatsForWorker.currentStreaks,
+                                historicalStreakData: trendStatsForWorker.streakData // Send full history of streak lengths
+                            }
+                        });
                     });
                 }
 
-                async function displayCalculationResult(diff, calcId) {
+async function displayCalculationResult(diff, calcId) {
                     if (DEBUG_MODE) {
                         console.log('Displaying calculation result...');
                     }
-                    const trendStats = calculateTrendStats();
+                    const trendStats = calculateTrendStats(); // This now produces streakData
                     const boardStats = getBoardStateStats();
                     const neighbourScores = runNeighbourAnalysis(false);
                     
@@ -1572,10 +1589,11 @@ let adaptiveFactorInfluences = {
                         if (DEBUG_MODE) {
                             console.log('Main: AI model is ready, requesting prediction probabilities.');
                         }
+                        // This now also gets streak predictions
                         predictionData = await getPredictionProbabilitiesFromWorker();
                     } else {
                         if (DEBUG_MODE) {
-                            console.warn('AI Model not ready or insufficient history for prediction. Skipping ML probabilities.');
+                            console.warn('AI Model not ready or insufficient history for prediction. Skipping ML probabilities and streak analysis.');
                         }
                     }
                     
@@ -1604,9 +1622,10 @@ let adaptiveFactorInfluences = {
                         if (baseNum < 0 || baseNum > 36) return;
 
                         const terminals = terminalMapping?.[baseNum] || [];
-                        const avgTrend = trendStats.averages?.[type.id] ?? '0.0';
+                        const avgTrend = parseFloat(trendStats.averages?.[type.id]) || 0; // Ensure float parsing
                         const hitRate = boardStats?.[type.id]?.total > 0 ? (boardStats?.[type.id]?.success / boardStats?.[type.id]?.total * 100).toFixed(2) + '%' : '0.00%';
                         const currentStreak = trendStats.currentStreaks?.[type.id] ?? 0;
+                        
                         let confirmationHtml = (currentStreak >= 2) ? `<span class="text-green-600">- confirmed by ${currentStreak}</span>` : '';
                         
                         let groupPocketDistanceDisplay = '';
@@ -1624,7 +1643,18 @@ let adaptiveFactorInfluences = {
                         
                         const mlProbability = predictionData?.groups?.[type.id] !== undefined ? ` (AI: ${(predictionData.groups[type.id] * 100).toFixed(1)}%)` : '';
 
-                        groupInfoHtml += `<p><strong class="capitalize" style="color: ${type.textColor};">${type.displayLabel} (${baseNum}):</strong> ${terminals.join(', ') || 'None'} <span class="text-xs text-gray-500">(Avg Trend: ${avgTrend}) ${hitRate}${mlProbability}</span> ${confirmationHtml}${groupPocketDistanceDisplay}</p>`;
+                        // NEW: Streak Prediction Display
+                        let streakPredictionHtml = '';
+                        const streakPrediction = predictionData?.streakPredictions?.[type.id];
+                        if (streakPrediction && streakPrediction.confidence > 0.5) { // Only show if confidence is reasonable
+                            if (currentStreak > 0) { // If there's a current streak, give guidance on its end
+                                streakPredictionHtml = `<br><span class="text-xs text-gray-600">Streak usually lasts ${streakPrediction.lasts}. Current: ${currentStreak}. ${streakPrediction.endsMessage}</span>`;
+                            } else { // If no current streak, give average length
+                                streakPredictionHtml = `<br><span class="text-xs text-gray-600">Streak usually lasts ${streakPrediction.lasts}.</span>`;
+                            }
+                        }
+
+                        groupInfoHtml += `<p><strong class="capitalize" style="color: ${type.textColor};">${type.displayLabel} (${baseNum}):</strong> ${terminals.join(', ') || 'None'} <span class="text-xs text-gray-500">(Avg Trend: ${avgTrend}) ${hitRate}${mlProbability}</span> ${confirmationHtml}${groupPocketDistanceDisplay}${streakPredictionHtml}</p>`;
                     });
 
                     let failureAnalysisHtml = '';
@@ -2704,7 +2734,8 @@ async function handleClearHistory() { // Made async
                     if (DEBUG_MODE) {
                         console.log('Main: Sending initial config to worker.');
                     }
-                    const savedScaler = localStorage.getItem('roulette-ml-scaler'); // Load scaler from localStorage
+const savedScaler = localStorage.getItem('roulette-ml-scaler'); // Load scaler from localStorage
+                    const trendStatsForInit = calculateTrendStats(); // Get initial trend stats for worker
                     aiWorker.postMessage({ 
                         type: 'init', 
                         payload: { 
@@ -2712,7 +2743,9 @@ async function handleClearHistory() { // Made async
                             allPredictionTypes: clonablePredictionTypes,
                             terminalMapping: terminalMapping,
                             rouletteWheel: rouletteWheel,
-                            scaler: savedScaler // Send saved scaler to worker
+                            scaler: savedScaler, // Send saved scaler to worker
+                            // NEW: Send historical streak data on init
+                            historicalStreakData: trendStatsForInit.streakData
                         } 
                     });
 
