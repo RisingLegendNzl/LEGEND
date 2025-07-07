@@ -1564,11 +1564,14 @@ if (history.filter(item => item.status === 'success').length >= TRAINING_MIN_HIS
                         dom.aiModelStatus.textContent = `AI Model: Need at least ${TRAINING_MIN_HISTORY} confirmed spins to train. (Current: ${history.filter(item => item.status === 'success').length})`;
                     }
 
-// --- NEW, SIMPLER AUTO-CALCULATION LOGIC ---
-// This implements the requested flow: new_num1 = winning_number, new_num2 = last_num2
+// --- FINAL, CORRECTED AUTO-CALCULATION LOGIC ---
 if (historyItem) { // Ensure we have the previous history item to reference
-    const nextNum1 = winningNumber;   // The number just confirmed.
-    const nextNum2 = historyItem.num2; // The 'Subtract From' number from the last calculation.
+
+    // The previous "Subtract From" number becomes the new "Number to Subtract".
+    const nextNum1 = historyItem.num2; 
+    
+    // The new winning number becomes the new "Subtract From" number.
+    const nextNum2 = winningNumber;
 
     // Update the visual input fields.
     dom.number1.value = nextNum1;
