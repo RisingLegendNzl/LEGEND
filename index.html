@@ -2601,10 +2601,11 @@ async function handleClearHistory() { // Made async
 
 
                     // Final HTML construction
-                    let finalHtml = `<strong class="${signalColor}">${signal}:</strong> Play <strong style="color: ${bestCandidate.type.textColor};">${bestCandidate.type.label}</strong><br><span class="text-xs text-gray-500">${reason}</span>`;
-                    if (signal.includes('Wait')) {
-                         finalHtml = `<strong class="${signalColor}">${signal}</strong> <br><span class="text-xs text-gray-500">${reason}</span>`;
-                    }
+                    // Final HTML construction
+let finalHtml = `<strong class="${signalColor}">${signal}:</strong> Play <strong style="color: ${bestCandidate.type.textColor};">${bestCandidate.type.label}</strong><br><span class="text-xs text-gray-500">${reason}</span>`;
+if (signal.includes('Wait')) {
+     finalHtml = `<strong class="${signalColor}">${signal}</strong> <br><span class="text-xs text-gray-500">${reason}</span>`;
+}
 
                     if (useNeighbourFocus && (signal === 'Play' || signal === 'Strong Play')) {
                         const baseNum = bestCandidate.type.calculateBase(currentNum1, currentNum2);
