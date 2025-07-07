@@ -1684,7 +1684,7 @@ async function displayCalculationResult(diff, calcId) {
                             }
                         }
 
-                        groupInfoHtml += `<p><strong class="capitalize" style="color: ${type.textColor};">${type.displayLabel} (${baseNum}):</strong> ${terminals.join(', ') || 'None'} <span class="text-xs text-gray-500">(Avg Trend: ${avgTrend}) ${hitRate}${mlProbability}</span> ${confirmationHtml}${groupPocketDistanceDisplay}${streakPredictionHtml}</p>`;
+                        groupInfoHtml += `<p><strong class="capitalize" style="color: ${type.textColor};">${type.displayLabel} (${baseNum}):</strong> ${(terminals && terminals.length > 0 ? terminals.join(', ') : 'None')} <span class="text-xs text-gray-500">(Avg Trend: ${avgTrend}) ${hitRate}${mlProbability}</span> ${confirmationHtml}${groupPocketDistanceDisplay}${streakPredictionHtml}</p>`;
                     });
 
                     let failureAnalysisHtml = '';
