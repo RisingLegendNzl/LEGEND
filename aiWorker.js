@@ -26,10 +26,9 @@ const failureModes = ['none', 'normalLoss', 'streakBreak', 'sectionShift'];
 
 let ensemble = ENSEMBLE_CONFIG.map(config => ({ ...config, model: null, scaler: null }));
 let allPredictionTypes = [];
+let terminalMapping = {};
+let rouletteWheel = [];
 let isTraining = false;
-
-// New: Store historical streak data passed from main thread
-let historicalStreakData = {}; // Stores { typeId: [streakLength1, streakLength2, ...], ... }
 
 // Helper to get number properties (unchanged)
 function getNumberProperties(num) {
@@ -58,8 +57,8 @@ function getNumberProperties(num) {
     };
 }
 
-// Function to prepare data (largely unchanged, creates a universal scaler)
-function prepareDataForLSTM(historyData) {
+// Function to prepare data, now includes streak length labels
+function prepareDataForLSTM(historyData, historicalStreakData) {
     const validHistory = historyData.filter(item => item.status === 'success' && item.winningNumber !== null);
     if (validHistory.length < SEQUENCE_LENGTH + 1) {
         self.postMessage({ type: 'status', message: `AI Model: Need at least ${TRAINING_MIN_HISTORY} confirmed spins to train.` });
@@ -99,44 +98,67 @@ function prepareDataForLSTM(historyData) {
     let rawFeatures = [];
     let rawGroupLabels = [];
     let rawFailureLabels = [];
+    let rawStreakLengthLabels = []; // New labels for streak length
 
     for (let i = 0; i < validHistory.length - SEQUENCE_LENGTH; i++) {
         const sequence = validHistory.slice(i, i + SEQUENCE_LENGTH);
         const targetItem = validHistory[i + SEQUENCE_LENGTH];
+        
         const xs_row = sequence.map(item => getFeatures(item).map((val, idx) => scaleFeature(val, idx)));
         rawFeatures.push(xs_row);
+        
         rawGroupLabels.push(allPredictionTypes.map(type => targetItem.typeSuccessStatus[type.id] ? 1 : 0));
         rawFailureLabels.push(failureModes.map(mode => (targetItem.failureMode === mode ? 1 : 0)));
+        
+        // Create the label for streak lengths
+        const streakLengthLabel = allPredictionTypes.map(type => {
+            const streaks = historicalStreakData[type.id] || [];
+            // Predict the average streak length for this type based on historical data
+            return streaks.length > 0 ? streaks.reduce((a, b) => a + b, 0) / streaks.length : 0;
+        });
+        rawStreakLengthLabels.push(streakLengthLabel);
     }
 
     const featureCount = rawFeatures.length > 0 ? rawFeatures[0][0].length : 0;
     const xs = rawFeatures.length > 0 ? tf.tensor3d(rawFeatures) : null;
     const ys = {
         group_output: rawGroupLabels.length > 0 ? tf.tensor2d(rawGroupLabels) : null,
-        failure_output: rawFailureLabels.length > 0 ? tf.tensor2d(rawFailureLabels) : null
+        failure_output: rawFailureLabels.length > 0 ? tf.tensor2d(rawFailureLabels) : null,
+        streak_output: rawStreakLengthLabels.length > 0 ? tf.tensor2d(rawStreakLengthLabels) : null // Add new labels to ys
     };
 
     return { xs, ys, scaler: newScaler, featureCount };
 }
 
-// Function to create model (now accepts lstmUnits as a parameter)
-function createMultiOutputLSTMModel(inputShape, groupOutputUnits, failureOutputUnits, lstmUnits) {
+// Function to create model, now with a third output for streaks
+function createMultiOutputLSTMModel(inputShape, groupOutputUnits, failureOutputUnits, streakOutputUnits, lstmUnits) {
     const input = tf.input({ shape: inputShape });
     const lstmLayer = tf.layers.lstm({ units: lstmUnits, returnSequences: false, activation: 'relu' }).apply(input);
     const dropoutLayer = tf.layers.dropout({ rate: 0.2 }).apply(lstmLayer);
+    
+    // Original outputs
     const groupOutput = tf.layers.dense({ units: groupOutputUnits, activation: 'sigmoid', name: 'group_output' }).apply(dropoutLayer);
     const failureOutput = tf.layers.dense({ units: failureOutputUnits, activation: 'softmax', name: 'failure_output' }).apply(dropoutLayer);
-    const model = tf.model({ inputs: input, outputs: [groupOutput, failureOutput] });
+    
+    // New output for streak length prediction (regression)
+    const streakOutput = tf.layers.dense({ units: streakOutputUnits, activation: 'relu', name: 'streak_output' }).apply(dropoutLayer);
+
+    const model = tf.model({ inputs: input, outputs: [groupOutput, failureOutput, streakOutput] });
+    
     model.compile({
         optimizer: tf.train.adam(),
-        loss: { 'group_output': 'binaryCrossentropy', 'failure_output': 'categoricalCrossentropy' },
+        loss: { 
+            'group_output': 'binaryCrossentropy', 
+            'failure_output': 'categoricalCrossentropy',
+            'streak_output': 'meanSquaredError' // MSE for regression
+        },
         metrics: ['accuracy']
     });
     return model;
 }
 
-// Main training function (overhauled for ensemble)
-async function trainEnsemble(historyData) {
+// Main training function (updated for new data)
+async function trainEnsemble(historyData, historicalStreakData) {
     if (isTraining) {
         self.postMessage({ type: 'status', message: 'AI Ensemble: Training already in progress.' });
         return;
@@ -144,26 +166,26 @@ async function trainEnsemble(historyData) {
     isTraining = true;
     self.postMessage({ type: 'status', message: 'AI Ensemble: Preparing data...' });
 
-    const { xs, ys, scaler, featureCount } = prepareDataForLSTM(historyData);
+    const { xs, ys, scaler, featureCount } = prepareDataForLSTM(historyData, historicalStreakData);
     if (!xs) {
         self.postMessage({ type: 'status', message: 'AI Ensemble: Not enough valid data to train.' });
         isTraining = false;
         return;
     }
 
-    // A single scaler is now used for all models
     self.postMessage({ type: 'saveScaler', payload: JSON.stringify(scaler) });
     ensemble.forEach(member => member.scaler = scaler);
 
     const groupLabelCount = allPredictionTypes.length;
     const failureLabelCount = failureModes.length;
+    const streakLabelCount = allPredictionTypes.length;
 
     for (const member of ensemble) {
         try {
             self.postMessage({ type: 'status', message: `AI Ensemble: Training ${member.name}...` });
-            if (member.model) member.model.dispose(); // Dispose old model before training
+            if (member.model) member.model.dispose();
             
-            member.model = createMultiOutputLSTMModel([SEQUENCE_LENGTH, featureCount], groupLabelCount, failureLabelCount, member.lstmUnits);
+            member.model = createMultiOutputLSTMModel([SEQUENCE_LENGTH, featureCount], groupLabelCount, failureLabelCount, streakLabelCount, member.lstmUnits);
             
             await member.model.fit(xs, ys, {
                 epochs: member.epochs,
@@ -185,58 +207,13 @@ async function trainEnsemble(historyData) {
     xs.dispose();
     if (ys.group_output) ys.group_output.dispose();
     if (ys.failure_output) ys.failure_output.dispose();
+    if (ys.streak_output) ys.streak_output.dispose();
     isTraining = false;
     self.postMessage({ type: 'status', message: 'AI Ensemble: Ready!' });
 }
 
-// New: Function to perform streak prediction/analysis
-function analyzeStreakBehavior(typeId, currentStreakLength) {
-    const streaks = historicalStreakData[typeId];
-    if (!streaks || streaks.length < 5) { // Need at least 5 historical streaks for meaningful analysis
-        return {
-            lasts: 'Not enough data',
-            ends: 'Not enough data',
-            confidence: 0
-        };
-    }
-
-    // Sort streaks to find percentiles
-    const sortedStreaks = [...streaks].sort((a, b) => a - b);
-
-    // Calculate average streak length
-    const sum = sortedStreaks.reduce((a, b) => a + b, 0);
-    const averageLength = sum / sortedStreaks.length;
-
-    // Calculate 75th percentile (a common point for "usually ends around")
-    const p75Index = Math.floor(sortedStreaks.length * 0.75);
-    const p75Length = sortedStreaks[Math.min(p75Index, sortedStreaks.length - 1)];
-
-    // Confidence can be based on variance or number of data points
-    const variance = streaks.reduce((acc, val) => acc + Math.pow(val - averageLength, 2), 0) / streaks.length;
-    const stdDev = Math.sqrt(variance);
-    const confidence = Math.max(0, 1 - (stdDev / averageLength)); // Simple confidence measure
-
-    let endsMessage = '';
-    if (currentStreakLength > p75Length && p75Length > 0) {
-        endsMessage = ` (Past ${p75Length} length: due to end)`;
-    } else if (currentStreakLength > averageLength && averageLength > 0) {
-         endsMessage = ` (Past ${averageLength.toFixed(1)} length)`;
-    }
-
-    return {
-        lasts: averageLength.toFixed(1),
-        ends: p75Length,
-        endsMessage: endsMessage,
-        confidence: confidence
-    };
-}
-
-
-// Prediction function (overhauled for ensemble and now includes streak analysis)
-async function predictWithEnsemble(payload) { // Payload now includes history and current_streaks_data
-    const historyData = payload.history;
-    const currentStreaksData = payload.currentStreaksData; // New: Current streak lengths for each type
-
+// Prediction function (updated for third output)
+async function predictWithEnsemble(historyData) {
     const activeModels = ensemble.filter(m => m.model && m.scaler);
     if (activeModels.length === 0) return null;
 
@@ -245,7 +222,6 @@ async function predictWithEnsemble(payload) { // Payload now includes history an
 
     const lastSequence = validHistory.slice(-SEQUENCE_LENGTH);
     
-    // Use the scaler from the first available model (they are all the same now)
     const scaler = activeModels[0].scaler;
     
     const getFeatures = (item) => {
@@ -268,7 +244,6 @@ async function predictWithEnsemble(payload) { // Payload now includes history an
     };
 
     let inputTensor = null;
-    let finalResult = { groups: {}, failures: {}, streakPredictions: {} }; // Added streakPredictions
     try {
         const inputFeatures = lastSequence.map(item => getFeatures(item).map((val, idx) => scaleFeature(val, idx)));
         inputTensor = tf.tensor3d([inputFeatures]);
@@ -278,27 +253,30 @@ async function predictWithEnsemble(payload) { // Payload now includes history an
         // Average the predictions
         const averagedGroupProbs = new Float32Array(allPredictionTypes.length).fill(0);
         const averagedFailureProbs = new Float32Array(failureModes.length).fill(0);
+        const averagedStreakPreds = new Float32Array(allPredictionTypes.length).fill(0);
 
         for (const prediction of allPredictions) {
             const groupProbs = await prediction[0].data();
             const failureProbs = await prediction[1].data();
+            const streakPreds = await prediction[2].data(); // Get third output
+            
             groupProbs.forEach((p, i) => averagedGroupProbs[i] += p);
             failureProbs.forEach((p, i) => averagedFailureProbs[i] += p);
+            streakPreds.forEach((p, i) => averagedStreakPreds[i] += p);
+            
             prediction[0].dispose();
             prediction[1].dispose();
+            prediction[2].dispose(); // Dispose third output tensor
         }
 
         averagedGroupProbs.forEach((p, i) => averagedGroupProbs[i] /= allPredictions.length);
         averagedFailureProbs.forEach((p, i) => averagedFailureProbs[i] /= allPredictions.length);
+        averagedStreakPreds.forEach((p, i) => averagedStreakPreds[i] /= allPredictions.length);
 
+        const finalResult = { groups: {}, failures: {}, streakPredictions: {} };
         allPredictionTypes.forEach((type, i) => finalResult.groups[type.id] = averagedGroupProbs[i]);
         failureModes.forEach((mode, i) => finalResult.failures[mode] = averagedFailureProbs[i]);
-
-        // NEW: Integrate Streak Analysis
-        allPredictionTypes.forEach(type => {
-            const currentStreak = currentStreaksData[type.id] || 0; // Get current streak for this type
-            finalResult.streakPredictions[type.id] = analyzeStreakBehavior(type.id, currentStreak);
-        });
+        allPredictionTypes.forEach((type, i) => finalResult.streakPredictions[type.id] = averagedStreakPreds[i]);
         
         return finalResult;
 
@@ -311,7 +289,7 @@ async function predictWithEnsemble(payload) { // Payload now includes history an
 }
 
 
-// Storage functions (updated for ensemble)
+// Storage functions (unchanged)
 async function loadModelsFromStorage() {
     const loadPromises = ensemble.map(async (member) => {
         try {
@@ -335,7 +313,7 @@ async function clearModelsFromStorage() {
             }
             await tf.io.removeModel(`indexeddb://${member.path}`);
         } catch (error) {
-            // Error is expected if model doesn't exist, so we don't log it as a critical failure
+            // Error is expected if model doesn't exist
         }
     });
     await Promise.all(clearPromises);
@@ -344,49 +322,40 @@ async function clearModelsFromStorage() {
 }
 
 
-// --- Message Handling for Web Worker ---
+// --- Message Handling for Web Worker (Updated) ---
 self.onmessage = async (event) => {
     const { type, payload } = event.data;
     switch (type) {
         case 'init':
             allPredictionTypes = payload.allPredictionTypes;
+            terminalMapping = payload.terminalMapping;
+            rouletteWheel = payload.rouletteWheel;
             const loadedScaler = payload.scaler ? JSON.parse(payload.scaler) : null;
             if(loadedScaler) {
                 ensemble.forEach(m => m.scaler = loadedScaler);
             }
-            // New: Initialize historicalStreakData from payload if available
-            if (payload.historicalStreakData) {
-                historicalStreakData = payload.historicalStreakData;
-            }
             const loadResults = await loadModelsFromStorage();
-            if (loadResults.every(Boolean)) { // Only ready if ALL models loaded
+            if (loadResults.every(Boolean)) {
                 self.postMessage({ type: 'status', message: 'AI Ensemble: Ready!' });
             } else {
                 self.postMessage({ type: 'status', message: `AI Ensemble: Need at least ${TRAINING_MIN_HISTORY} confirmed spins to train.` });
             }
             break;
         case 'train':
-            // New: Update historicalStreakData from payload on train
-            if (payload.historicalStreakData) {
-                historicalStreakData = payload.historicalStreakData;
-            }
-            await trainEnsemble(payload.history);
+            await trainEnsemble(payload.history, payload.historicalStreakData);
             break;
         case 'predict':
-            const probabilities = await predictWithEnsemble(payload); // Pass entire payload including currentStreaksData
+            const probabilities = await predictWithEnsemble(payload.history);
             self.postMessage({ type: 'predictionResult', probabilities });
             break;
         case 'clear_model':
             await clearModelsFromStorage();
-            historicalStreakData = {}; // Clear streak data as well
             self.postMessage({ type: 'status', message: 'AI Ensemble: Cleared.' });
             break;
         case 'update_config':
             allPredictionTypes = payload.allPredictionTypes;
-            // Also update historicalStreakData if config updates mean history changed
-            if (payload.historicalStreakData) {
-                historicalStreakData = payload.historicalStreakData;
-            }
+            terminalMapping = payload.terminalMapping;
+            rouletteWheel = payload.rouletteWheel;
             break;
     }
 };
