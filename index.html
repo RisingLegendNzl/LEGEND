@@ -1564,27 +1564,21 @@ if (history.filter(item => item.status === 'success').length >= TRAINING_MIN_HIS
                         dom.aiModelStatus.textContent = `AI Model: Need at least ${TRAINING_MIN_HISTORY} confirmed spins to train. (Current: ${history.filter(item => item.status === 'success').length})`;
                     }
 
-                    if (confirmedWinsLog.length >= 2) {
-    const nextNum1 = confirmedWinsLog[confirmedWinsLog.length - 2];
-    const nextNum2 = confirmedWinsLog[confirmedWinsLog.length - 1];
+// --- NEW, SIMPLER AUTO-CALCULATION LOGIC ---
+// This implements the requested flow: new_num1 = winning_number, new_num2 = last_num2
+if (historyItem) { // Ensure we have the previous history item to reference
+    const nextNum1 = winningNumber;   // The number just confirmed.
+    const nextNum2 = historyItem.num2; // The 'Subtract From' number from the last calculation.
 
-    // Update the visual inputs
+    // Update the visual input fields.
     dom.number1.value = nextNum1;
     dom.number2.value = nextNum2;
     
-    // Pass the numbers directly to the calculation function
+    // Trigger the next calculation directly with the correct numbers.
     setTimeout(() => {
         handleCalculation(nextNum1, nextNum2);
     }, 100);
-    
-} else if (confirmedWinsLog.length === 1) {
-                        dom.number1.value = winningNumber;
-                        dom.number2.value = '';
-                        dom.resultDisplay.innerHTML = `<div class="result-display text-center font-semibold text-gray-600">First number (${winningNumber}) logged. Enter next number to begin automation.</div>`;
-                        dom.number2.focus();
-                    } else {
-                        dom.resultDisplay.classList.add('hidden');
-                    }
+}
                     saveState();
                 }
 
@@ -1745,15 +1739,10 @@ async function displayCalculationResult(diff, calcId) {
                     drawRouletteWheel(diff, lastWinningNumber);
                 }
 
-async function handleCalculation(n1 = null, n2 = null) {
-    if (DEBUG_MODE) {
-        console.log("DEBUG: Entered handleCalculation function.");
-        console.log('Calculate button clicked.');
-    }
+async function handleCalculation() {
+    // ...
     try {
-        // Use passed arguments for automation, or read from DOM for manual clicks
-        const num1 = (n1 !== null) ? n1 : parseInt(dom.number1.value, 10);
-        const num2 = (n2 !== null) ? n2 : parseInt(dom.number2.value, 10);
+        const num1 = parseInt(dom.number1.value, 10), num2 = parseInt(dom.number2.value, 10);
                         if (isNaN(num1) || isNaN(num2)) {
                             dom.resultDisplay.innerHTML = `<div class="result-display text-center font-semibold text-red-600">Please enter valid numbers in both fields.</div>`;
                             dom.resultDisplay.classList.remove('hidden');
