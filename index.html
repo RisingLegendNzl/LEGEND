@@ -2272,7 +2272,7 @@ const recommendationAtCalc = getRecommendation(
                         if (!button) return;
                         history = history.filter(item => item.id !== parseInt(button.dataset.id));
                         
-                        confirmedWinsLog = history.map(item => item.winningNumber).filter(n => n !== undefined && n !== null);
+                        confirmedWinsLog = history.map(item => item.winningNumber).filter(n => n !== undefined && n !== null).reverse();
                         
                         labelHistoryFailures(history.slice().sort((a, b) => a.id - b.id));
 
