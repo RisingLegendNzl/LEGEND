@@ -1565,12 +1565,19 @@ if (history.filter(item => item.status === 'success').length >= TRAINING_MIN_HIS
                     }
 
                     if (confirmedWinsLog.length >= 2) {
-                        dom.number1.value = confirmedWinsLog[confirmedWinsLog.length - 2];
-                        dom.number2.value = confirmedWinsLog[confirmedWinsLog.length - 1];
-                        setTimeout(() => {
-        handleCalculation();
+    const nextNum1 = confirmedWinsLog[confirmedWinsLog.length - 2];
+    const nextNum2 = confirmedWinsLog[confirmedWinsLog.length - 1];
+
+    // Update the visual inputs
+    dom.number1.value = nextNum1;
+    dom.number2.value = nextNum2;
+    
+    // Pass the numbers directly to the calculation function
+    setTimeout(() => {
+        handleCalculation(nextNum1, nextNum2);
     }, 100);
-                    } else if (confirmedWinsLog.length === 1) {
+    
+} else if (confirmedWinsLog.length === 1) {
                         dom.number1.value = winningNumber;
                         dom.number2.value = '';
                         dom.resultDisplay.innerHTML = `<div class="result-display text-center font-semibold text-gray-600">First number (${winningNumber}) logged. Enter next number to begin automation.</div>`;
@@ -1738,13 +1745,15 @@ async function displayCalculationResult(diff, calcId) {
                     drawRouletteWheel(diff, lastWinningNumber);
                 }
 
-                async function handleCalculation() {
-                    if (DEBUG_MODE) {
-                        console.log("DEBUG: Entered handleCalculation function.");
-                        console.log('Calculate button clicked.');
-                    }
-                    try {
-                        const num1 = parseInt(dom.number1.value, 10), num2 = parseInt(dom.number2.value, 10);
+async function handleCalculation(n1 = null, n2 = null) {
+    if (DEBUG_MODE) {
+        console.log("DEBUG: Entered handleCalculation function.");
+        console.log('Calculate button clicked.');
+    }
+    try {
+        // Use passed arguments for automation, or read from DOM for manual clicks
+        const num1 = (n1 !== null) ? n1 : parseInt(dom.number1.value, 10);
+        const num2 = (n2 !== null) ? n2 : parseInt(dom.number2.value, 10);
                         if (isNaN(num1) || isNaN(num2)) {
                             dom.resultDisplay.innerHTML = `<div class="result-display text-center font-semibold text-red-600">Please enter valid numbers in both fields.</div>`;
                             dom.resultDisplay.classList.remove('hidden');
