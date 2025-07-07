@@ -1680,14 +1680,15 @@ async function displayCalculationResult(diff, calcId) {
                         
                         const mlProbability = (predictionData && predictionData.groups && predictionData.groups[type.id] !== undefined) ? ` (AI: ${(predictionData.groups[type.id] * 100).toFixed(1)}%)` : '';
 
-                        // NEW: Streak Prediction Display
+                        // --- FIXED: Streak Prediction Display ---
                         let streakPredictionHtml = '';
-                        const streakPrediction = predictionData?.streakPredictions?.[type.id];
-                        if (streakPrediction && streakPrediction.confidence > 0.5) { // Only show if confidence is reasonable
-                            if (currentStreak > 0) { // If there's a current streak, give guidance on its end
-                                streakPredictionHtml = `<br><span class="text-xs text-gray-600">Streak usually lasts ${streakPrediction.lasts}. Current: ${currentStreak}. ${streakPrediction.endsMessage}</span>`;
-                            } else { // If no current streak, give average length
-                                streakPredictionHtml = `<br><span class="text-xs text-gray-600">Streak usually lasts ${streakPrediction.lasts}.</span>`;
+                        const predictedAvgStreak = predictionData?.streakPredictions?.[type.id];
+                        // Only show if the predicted average is a meaningful number (e.g., > 1.5)
+                        if (predictedAvgStreak && predictedAvgStreak > 1.5) { 
+                            if (currentStreak > 0) { // If there's a current streak, show both
+                                streakPredictionHtml = `<br><span class="text-xs text-gray-600">AI Est. Streak Length: ${predictedAvgStreak.toFixed(1)}. (Current: ${currentStreak})</span>`;
+                            } else { // If no current streak, just show the estimate
+                                streakPredictionHtml = `<br><span class="text-xs text-gray-600">AI Est. Streak Length: ${predictedAvgStreak.toFixed(1)}</span>`;
                             }
                         }
 
