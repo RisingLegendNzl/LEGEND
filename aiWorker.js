@@ -28,6 +28,9 @@ let ensemble = ENSEMBLE_CONFIG.map(config => ({ ...config, model: null, scaler: 
 let allPredictionTypes = [];
 let isTraining = false;
 
+// New: Store historical streak data passed from main thread
+let historicalStreakData = {}; // Stores { typeId: [streakLength1, streakLength2, ...], ... }
+
 // Helper to get number properties (unchanged)
 function getNumberProperties(num) {
     const redNumbers = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
@@ -186,8 +189,54 @@ async function trainEnsemble(historyData) {
     self.postMessage({ type: 'status', message: 'AI Ensemble: Ready!' });
 }
 
-// Prediction function (overhauled for ensemble)
-async function predictWithEnsemble(historyData) {
+// New: Function to perform streak prediction/analysis
+function analyzeStreakBehavior(typeId, currentStreakLength) {
+    const streaks = historicalStreakData[typeId];
+    if (!streaks || streaks.length < 5) { // Need at least 5 historical streaks for meaningful analysis
+        return {
+            lasts: 'Not enough data',
+            ends: 'Not enough data',
+            confidence: 0
+        };
+    }
+
+    // Sort streaks to find percentiles
+    const sortedStreaks = [...streaks].sort((a, b) => a - b);
+
+    // Calculate average streak length
+    const sum = sortedStreaks.reduce((a, b) => a + b, 0);
+    const averageLength = sum / sortedStreaks.length;
+
+    // Calculate 75th percentile (a common point for "usually ends around")
+    const p75Index = Math.floor(sortedStreaks.length * 0.75);
+    const p75Length = sortedStreaks[Math.min(p75Index, sortedStreaks.length - 1)];
+
+    // Confidence can be based on variance or number of data points
+    const variance = streaks.reduce((acc, val) => acc + Math.pow(val - averageLength, 2), 0) / streaks.length;
+    const stdDev = Math.sqrt(variance);
+    const confidence = Math.max(0, 1 - (stdDev / averageLength)); // Simple confidence measure
+
+    let endsMessage = '';
+    if (currentStreakLength > p75Length && p75Length > 0) {
+        endsMessage = ` (Past ${p75Length} length: due to end)`;
+    } else if (currentStreakLength > averageLength && averageLength > 0) {
+         endsMessage = ` (Past ${averageLength.toFixed(1)} length)`;
+    }
+
+    return {
+        lasts: averageLength.toFixed(1),
+        ends: p75Length,
+        endsMessage: endsMessage,
+        confidence: confidence
+    };
+}
+
+
+// Prediction function (overhauled for ensemble and now includes streak analysis)
+async function predictWithEnsemble(payload) { // Payload now includes history and current_streaks_data
+    const historyData = payload.history;
+    const currentStreaksData = payload.currentStreaksData; // New: Current streak lengths for each type
+
     const activeModels = ensemble.filter(m => m.model && m.scaler);
     if (activeModels.length === 0) return null;
 
@@ -219,6 +268,7 @@ async function predictWithEnsemble(historyData) {
     };
 
     let inputTensor = null;
+    let finalResult = { groups: {}, failures: {}, streakPredictions: {} }; // Added streakPredictions
     try {
         const inputFeatures = lastSequence.map(item => getFeatures(item).map((val, idx) => scaleFeature(val, idx)));
         inputTensor = tf.tensor3d([inputFeatures]);
@@ -241,9 +291,14 @@ async function predictWithEnsemble(historyData) {
         averagedGroupProbs.forEach((p, i) => averagedGroupProbs[i] /= allPredictions.length);
         averagedFailureProbs.forEach((p, i) => averagedFailureProbs[i] /= allPredictions.length);
 
-        const finalResult = { groups: {}, failures: {} };
         allPredictionTypes.forEach((type, i) => finalResult.groups[type.id] = averagedGroupProbs[i]);
         failureModes.forEach((mode, i) => finalResult.failures[mode] = averagedFailureProbs[i]);
+
+        // NEW: Integrate Streak Analysis
+        allPredictionTypes.forEach(type => {
+            const currentStreak = currentStreaksData[type.id] || 0; // Get current streak for this type
+            finalResult.streakPredictions[type.id] = analyzeStreakBehavior(type.id, currentStreak);
+        });
         
         return finalResult;
 
@@ -299,6 +354,10 @@ self.onmessage = async (event) => {
             if(loadedScaler) {
                 ensemble.forEach(m => m.scaler = loadedScaler);
             }
+            // New: Initialize historicalStreakData from payload if available
+            if (payload.historicalStreakData) {
+                historicalStreakData = payload.historicalStreakData;
+            }
             const loadResults = await loadModelsFromStorage();
             if (loadResults.every(Boolean)) { // Only ready if ALL models loaded
                 self.postMessage({ type: 'status', message: 'AI Ensemble: Ready!' });
@@ -307,18 +366,27 @@ self.onmessage = async (event) => {
             }
             break;
         case 'train':
+            // New: Update historicalStreakData from payload on train
+            if (payload.historicalStreakData) {
+                historicalStreakData = payload.historicalStreakData;
+            }
             await trainEnsemble(payload.history);
             break;
         case 'predict':
-            const probabilities = await predictWithEnsemble(payload.history);
+            const probabilities = await predictWithEnsemble(payload); // Pass entire payload including currentStreaksData
             self.postMessage({ type: 'predictionResult', probabilities });
             break;
         case 'clear_model':
             await clearModelsFromStorage();
+            historicalStreakData = {}; // Clear streak data as well
             self.postMessage({ type: 'status', message: 'AI Ensemble: Cleared.' });
             break;
         case 'update_config':
             allPredictionTypes = payload.allPredictionTypes;
+            // Also update historicalStreakData if config updates mean history changed
+            if (payload.historicalStreakData) {
+                historicalStreakData = payload.historicalStreakData;
+            }
             break;
     }
 };
