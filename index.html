@@ -42,7 +42,7 @@
             align-items: center;
             transition: all 0.2s ease;
             padding: 12px 20px; /* Adjusted padding for more space */
-            border-radius: 88px;
+            border-radius: 8px; /* Corrected from 88px */
             position: relative; /* Added for badge positioning */
             flex-wrap: wrap; /* Allow content to wrap if needed */
         }
@@ -546,81 +546,6 @@
                         </label>
                     </div>
             </div>
-                <div class="card p-8">
-                    <div id="advancedStrategyGuideHeader" onclick="toggleGuide('advancedStrategyGuideContent')" class="flex justify-between items-center cursor-pointer">
-                        <h2 class="text-xl font-bold text-gray-700">Advanced Strategies</h2>
-                        <button class="text-indigo-600 hover:text-indigo-800 font-semibold text-sm">What do these do?</button>
-                    </div>
-                    <div id="advancedStrategyGuideContent" class="strategy-guide-content">
-                        <div class="space-y-4">
-                            <div>
-                                <h4 class="font-bold text-gray-800">Dynamic Best Strategy</h4>
-                                <p>When enabled, the app will automatically analyze its recent history to identify which single prediction method is performing the best and advise playing it.</p>
-                            </div>
-                            <div>
-                                <h4 class="font-bold text-gray-800">Adaptive Play Signals</h4>
-                                <p>Provides more nuanced betting advice ('Strong Play', 'Wait', 'Avoid Now') based on the quality and risk of the current signal.</p>
-                            </div>
-                            <div>
-                                <h4 class="font-bold text-gray-800">Table Change Warnings</h4>
-                                <p>Provides warnings when a previously strong pattern seems to be breaking, helping you avoid potential losing streaks.</p>
-                            </div>
-                                <div>
-                                <h4 class="font-bold text-gray-800">Due for a Hit (Contrarian)</h4>
-                                <p>When enabled, this strategy looks for a state that has been performing well below its historical average and recommends it, betting on a return to the mean.</p>
-                            </div>
-                            <div>
-                                <h4 class="font-bold text-gray-800">Neighbour Focus</h4>
-                                <p>When enabled, this strategy refines the main recommendation by highlighting the "hottest" numbers from the Neighbour Analysis that fall within the recommended group's hit zone.</p>
-                            </div>
-                            <div>
-                                <h4 class="font-bold text-gray-800">Less Strict Mode</h4>
-                                <p>When enabled, this relaxes the conditions for a "(High Confidence)" recommendation. It will be shown if the top state has a very high hit rate (over 60%) or a long winning streak (3 or more), removing the need for trend confirmation.</p>
-                            </div>
-                            <div>
-                                <h4 class="font-bold text-gray-800">Dynamic Terminal Neighbour Count</h4>
-                                <p>When enabled, the "hit zone" for a prediction will dynamically adjust its terminal neighbour count based on whether the winning number is a direct hit or a neighbor. If the winning number is the base number or a direct terminal, the terminal neighbour count will be 0. Otherwise, it will use the standard terminal neighbour count (3 or 1).</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="pt-2 divide-y divide-gray-200">
-                        <label class="toggle-label">
-                            <span class="font-medium text-gray-700">Dynamic Best Strategy</span>
-                            <input type="checkbox" id="dynamicStrategyToggle" class="toggle-checkbox">
-                            <div class="toggle-switch"><div class="toggle-knob"></div></div>
-                        </label>
-                        <label class="toggle-label">
-                            <span class="font-medium text-gray-700">Adaptive Play Signals</span>
-                            <input type="checkbox" id="adaptivePlayToggle" class="toggle-checkbox">
-                            <div class="toggle-switch"><div class="toggle-knob"></div></div>
-                        </label>
-                        <label class="toggle-label">
-                            <span class="font-medium text-gray-700">Table Change Warnings</span>
-                            <input type="checkbox" id="tableChangeWarningsToggle" class="toggle-checkbox">
-                            <div class="toggle-switch"><div class="toggle-knob"></div></div>
-                        </label>
-                        <label class="toggle-label">
-                            <span class="font-medium text-gray-700">Due for a Hit (Contrarian)</span>
-                            <input type="checkbox" id="dueForHitToggle" class="toggle-checkbox">
-                            <div class="toggle-switch"><div class="toggle-knob"></div></div>
-                        </label>
-                        <label class="toggle-label">
-                            <span class="font-medium text-gray-700">Neighbour Focus</span>
-                            <input type="checkbox" id="neighbourFocusToggle" class="toggle-checkbox">
-                            <div class="toggle-switch"><div class="toggle-knob"></div></div>
-                        </label>
-                        <label class="toggle-label">
-                            <span class="font-medium text-gray-700">Less Strict Mode</span>
-                            <input type="checkbox" id="lessStrictModeToggle" class="toggle-checkbox">
-                            <div class="toggle-switch"><div class="toggle-knob"></div></div>
-                        </label>
-                        <label class="toggle-label">
-                            <span class="font-medium text-gray-700">Dynamic Terminal Neighbour Count</span>
-                            <input type="checkbox" id="dynamicTerminalNeighbourCountToggle" class="toggle-checkbox">
-                            <div class="toggle-switch"><div class="toggle-knob"></div></div>
-                        </label>
-                    </div>
-            </div>
 
             <div class="card p-8">
                 <div id="advancedSettingsHeader" onclick="toggleGuide('advancedSettingsContent')" class="flex justify-between items-center cursor-pointer">
@@ -651,6 +576,7 @@
                         <button id="saveParametersButton" class="btn btn-secondary">Save Parameters to File</button>
                         <input type="file" id="loadParametersInput" class="hidden" accept=".json">
                         <label for="loadParametersInput" id="loadParametersLabel" class="w-full text-center btn btn-secondary cursor-pointer">Load Parameters from File</label>
+                        <button id="optimizeStrategyButton" class="btn btn-primary col-span-full">Optimize Strategy</button>
                     </div>
 
                     <p id="parameterStatusMessage" class="text-sm text-center text-gray-600 mt-2 h-4"></p>
@@ -888,7 +814,9 @@
                     saveParametersButton: document.getElementById('saveParametersButton'),
                     loadParametersInput: document.getElementById('loadParametersInput'),
                     loadParametersLabel: document.getElementById('loadParametersLabel'),
-                    parameterStatusMessage: document.getElementById('parameterStatusMessage')
+                    parameterStatusMessage: document.getElementById('parameterStatusMessage'),
+                    // NEW: Optimize Strategy Button DOM element - Added this back correctly
+                    optimizeStrategyButton: document.getElementById('optimizeStrategyButton') 
                 };
 
                 if (DEBUG_MODE) {
@@ -2072,11 +2000,31 @@
                     }
                     
                     // --- RESET STATE FOR A CLEAN ANALYSIS ---
+                    // Temporarily store current global state that will be manipulated by handleHistoricalAnalysis
+                    const originalHistory = [...history];
+                    const originalConfirmedWinsLog = [...confirmedWinsLog];
+                    const originalPatternMemory = JSON.parse(JSON.stringify(patternMemory));
+                    const originalStrategyStates = JSON.parse(JSON.stringify(strategyStates));
+                    const originalAdaptiveFactorInfluences = JSON.parse(JSON.stringify(adaptiveFactorInfluences));
+                    const originalUseTrendConfirmation = useTrendConfirmation;
+                    const originalUseWeightedZone = useWeightedZone;
+                    const originalUseProximityBoost = useProximityBoost;
+                    const originalUsePocketDistance = usePocketDistance;
+                    const originalUseLowestPocketDistance = useLowestPocketDistance;
+                    const originalUseAdvancedCalculations = useAdvancedCalculations;
+                    const originalUseDynamicStrategy = useDynamicStrategy;
+                    const originalUseAdaptivePlay = useAdaptivePlay;
+                    const originalUseTableChangeWarnings = useTableChangeWarnings;
+                    const originalUseDueForHit = useDueForHit;
+                    const originalUseNeighbourFocus = useNeighbourFocus;
+                    const originalUseLessStrict = useLessStrict;
+                    const originalUseDynamicTerminalNeighbourCount = useDynamicTerminalNeighbourCount;
+
+
                     history = []; 
                     confirmedWinsLog = []; 
                     patternMemory = {}; 
                     
-                    // IMPORTANT: Reset strategyStates and adaptiveFactorInfluences for a fresh simulation
                     strategyStates = {
                         weightedZone: { weight: 1.0, name: 'Neighbour Weighting' },
                         proximityBoost: { weight: 1.0, name: 'Proximity Boost' }
@@ -2111,9 +2059,6 @@
                         const boardStatsAtCalc = getBoardStateStats(history); 
                         const neighbourScoresAtCalc = runNeighbourAnalysis(false, history); 
 
-                        // AI predictions are generally not performed step-by-step during historical analysis 
-                        // for efficiency, as it would require retraining/predicting at each step.
-                        // Instead, the AI is trained once at the end on the full history.
                         const recommendationAtCalc = getRecommendation(
                             trendStatsAtCalc,
                             boardStatsAtCalc,
@@ -2218,6 +2163,29 @@
                     if (DEBUG_MODE) {
                         console.log('Historical analysis with simulation complete. Final history array:', history);
                     }
+
+                    // Restore original state if optimization is running, so next combination starts clean
+                    if (isOptimizing) {
+                        history = originalHistory;
+                        confirmedWinsLog = originalConfirmedWinsLog;
+                        patternMemory = originalPatternMemory;
+                        Object.assign(strategyStates, originalStrategyStates);
+                        Object.assign(adaptiveFactorInfluences, originalAdaptiveFactorInfluences);
+                        useTrendConfirmation = originalUseTrendConfirmation;
+                        useWeightedZone = originalUseWeightedZone;
+                        useProximityBoost = originalUseProximityBoost;
+                        usePocketDistance = originalUsePocketDistance;
+                        useLowestPocketDistance = originalUseLowestPocketDistance;
+                        useAdvancedCalculations = originalUseAdvancedCalculations;
+                        useDynamicStrategy = originalUseDynamicStrategy;
+                        useAdaptivePlay = originalUseAdaptivePlay;
+                        useTableChangeWarnings = originalUseTableChangeWarnings;
+                        useDueForHit = originalUseDueForHit;
+                        useNeighbourFocus = originalUseNeighbourFocus;
+                        useLessStrict = originalUseLessStrict;
+                        useDynamicTerminalNeighbourCount = originalUseDynamicTerminalNeighbourCount;
+                    }
+
                 }
                 
                 function handleImageUpload(event) {
@@ -2990,6 +2958,20 @@
 
                         // Sync slider to number input and vice versa
                         const updateValue = (sourceElement, targetElement, targetProp) => {
+                            // Only update if not optimizing
+                            if (isOptimizing) {
+                                console.warn('Cannot update parameter while optimization is running.');
+                                dom.parameterStatusMessage.textContent = 'Cannot adjust parameters during optimization.';
+                                // Revert input element to its current actual value
+                                targetElement.value = paramObj[paramName]; 
+                                if (sourceElement.type === 'range') {
+                                    numberInput.value = paramObj[paramName];
+                                } else if (sourceElement.type === 'number') {
+                                    slider.value = paramObj[paramName];
+                                }
+                                return;
+                            }
+
                             let val = parseFloat(sourceElement.value);
                             // Determine the correct default value source based on paramObj
                             let defaultValueSource = 0; // Default fallback
@@ -3223,6 +3205,8 @@
                         // NEW: Advanced Settings Buttons - Click Listeners
                         else if (event.target.id === 'resetParametersButton') resetAllParameters();
                         else if (event.target.id === 'saveParametersButton') saveParametersToFile();
+                        // NEW: Optimizer Button Click Listener
+                        else if (event.target.id === 'optimizeStrategyButton') runClientSideOptimization();
                     });
                     
                     dom.imageUpload.addEventListener('change', handleImageUpload);
