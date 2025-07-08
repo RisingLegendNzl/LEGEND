@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -42,7 +43,7 @@
             align-items: center;
             transition: all 0.2s ease;
             padding: 12px 20px; /* Adjusted padding for more space */
-            border-radius: 8px;
+            border-radius: 88px;
             position: relative; /* Added for badge positioning */
             flex-wrap: wrap; /* Allow content to wrap if needed */
         }
@@ -546,6 +547,81 @@
                         </label>
                     </div>
             </div>
+                <div class="card p-8">
+                    <div id="advancedStrategyGuideHeader" onclick="toggleGuide('advancedStrategyGuideContent')" class="flex justify-between items-center cursor-pointer">
+                        <h2 class="text-xl font-bold text-gray-700">Advanced Strategies</h2>
+                        <button class="text-indigo-600 hover:text-indigo-800 font-semibold text-sm">What do these do?</button>
+                    </div>
+                    <div id="advancedStrategyGuideContent" class="strategy-guide-content">
+                        <div class="space-y-4">
+                            <div>
+                                <h4 class="font-bold text-gray-800">Dynamic Best Strategy</h4>
+                                <p>When enabled, the app will automatically analyze its recent history to identify which single prediction method is performing the best and advise playing it.</p>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-800">Adaptive Play Signals</h4>
+                                <p>Provides more nuanced betting advice ('Strong Play', 'Wait', 'Avoid Now') based on the quality and risk of the current signal.</p>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-800">Table Change Warnings</h4>
+                                <p>Provides warnings when a previously strong pattern seems to be breaking, helping you avoid potential losing streaks.</p>
+                            </div>
+                                <div>
+                                <h4 class="font-bold text-gray-800">Due for a Hit (Contrarian)</h4>
+                                <p>When enabled, this strategy looks for a state that has been performing well below its historical average and recommends it, betting on a return to the mean.</p>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-800">Neighbour Focus</h4>
+                                <p>When enabled, this strategy refines the main recommendation by highlighting the "hottest" numbers from the Neighbour Analysis that fall within the recommended group's hit zone.</p>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-800">Less Strict Mode</h4>
+                                <p>When enabled, this relaxes the conditions for a "(High Confidence)" recommendation. It will be shown if the top state has a very high hit rate (over 60%) or a long winning streak (3 or more), removing the need for trend confirmation.</p>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-800">Dynamic Terminal Neighbour Count</h4>
+                                <p>When enabled, the "hit zone" for a prediction will dynamically adjust its terminal neighbour count based on whether the winning number is a direct hit or a neighbor. If the winning number is the base number or a direct terminal, the terminal neighbour count will be 0. Otherwise, it will use the standard terminal neighbour count (3 or 1).</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="pt-2 divide-y divide-gray-200">
+                        <label class="toggle-label">
+                            <span class="font-medium text-gray-700">Dynamic Best Strategy</span>
+                            <input type="checkbox" id="dynamicStrategyToggle" class="toggle-checkbox">
+                            <div class="toggle-switch"><div class="toggle-knob"></div></div>
+                        </label>
+                        <label class="toggle-label">
+                            <span class="font-medium text-gray-700">Adaptive Play Signals</span>
+                            <input type="checkbox" id="adaptivePlayToggle" class="toggle-checkbox">
+                            <div class="toggle-switch"><div class="toggle-knob"></div></div>
+                        </label>
+                        <label class="toggle-label">
+                            <span class="font-medium text-gray-700">Table Change Warnings</span>
+                            <input type="checkbox" id="tableChangeWarningsToggle" class="toggle-checkbox">
+                            <div class="toggle-switch"><div class="toggle-knob"></div></div>
+                        </label>
+                        <label class="toggle-label">
+                            <span class="font-medium text-gray-700">Due for a Hit (Contrarian)</span>
+                            <input type="checkbox" id="dueForHitToggle" class="toggle-checkbox">
+                            <div class="toggle-switch"><div class="toggle-knob"></div></div>
+                        </label>
+                        <label class="toggle-label">
+                            <span class="font-medium text-gray-700">Neighbour Focus</span>
+                            <input type="checkbox" id="neighbourFocusToggle" class="toggle-checkbox">
+                            <div class="toggle-switch"><div class="toggle-knob"></div></div>
+                        </label>
+                        <label class="toggle-label">
+                            <span class="font-medium text-gray-700">Less Strict Mode</span>
+                            <input type="checkbox" id="lessStrictModeToggle" class="toggle-checkbox">
+                            <div class="toggle-switch"><div class="toggle-knob"></div></div>
+                        </label>
+                        <label class="toggle-label">
+                            <span class="font-medium text-gray-700">Dynamic Terminal Neighbour Count</span>
+                            <input type="checkbox" id="dynamicTerminalNeighbourCountToggle" class="toggle-checkbox">
+                            <div class="toggle-switch"><div class="toggle-knob"></div></div>
+                        </label>
+                    </div>
+            </div>
 
             <div class="card p-8">
                 <div id="advancedSettingsHeader" onclick="toggleGuide('advancedSettingsContent')" class="flex justify-between items-center cursor-pointer">
@@ -576,7 +652,6 @@
                         <button id="saveParametersButton" class="btn btn-secondary">Save Parameters to File</button>
                         <input type="file" id="loadParametersInput" class="hidden" accept=".json">
                         <label for="loadParametersInput" id="loadParametersLabel" class="w-full text-center btn btn-secondary cursor-pointer">Load Parameters from File</label>
-                        <button id="optimizeStrategyButton" class="btn btn-primary col-span-full">Optimize Strategy</button>
                     </div>
 
                     <p id="parameterStatusMessage" class="text-sm text-center text-gray-600 mt-2 h-4"></p>
@@ -814,9 +889,7 @@
                     saveParametersButton: document.getElementById('saveParametersButton'),
                     loadParametersInput: document.getElementById('loadParametersInput'),
                     loadParametersLabel: document.getElementById('loadParametersLabel'),
-                    parameterStatusMessage: document.getElementById('parameterStatusMessage'),
-                    // NEW: Optimize Strategy Button DOM element
-                    optimizeStrategyButton: document.getElementById('optimizeStrategyButton')
+                    parameterStatusMessage: document.getElementById('parameterStatusMessage')
                 };
 
                 if (DEBUG_MODE) {
@@ -1008,12 +1081,6 @@
                 }
 
                 function handlePresetSelection(preset) {
-                    // Only allow preset selection if not optimizing
-                    if (isOptimizing) {
-                        dom.parameterStatusMessage.textContent = 'Cannot change presets while optimization is running.';
-                        return;
-                    }
-
                     if (preset === 'highestWinRate') {
                         // Apply specific STRATEGY_CONFIG values for this preset (adjust as needed if presets also control these)
                         Object.assign(STRATEGY_CONFIG, {
@@ -2006,31 +2073,11 @@
                     }
                     
                     // --- RESET STATE FOR A CLEAN ANALYSIS ---
-                    // Temporarily store current global state that will be manipulated by handleHistoricalAnalysis
-                    const originalHistory = [...history];
-                    const originalConfirmedWinsLog = [...confirmedWinsLog];
-                    const originalPatternMemory = JSON.parse(JSON.stringify(patternMemory));
-                    const originalStrategyStates = JSON.parse(JSON.stringify(strategyStates));
-                    const originalAdaptiveFactorInfluences = JSON.parse(JSON.stringify(adaptiveFactorInfluences));
-                    const originalUseTrendConfirmation = useTrendConfirmation;
-                    const originalUseWeightedZone = useWeightedZone;
-                    const originalUseProximityBoost = useProximityBoost;
-                    const originalUsePocketDistance = usePocketDistance;
-                    const originalUseLowestPocketDistance = useLowestPocketDistance;
-                    const originalUseAdvancedCalculations = useAdvancedCalculations;
-                    const originalUseDynamicStrategy = useDynamicStrategy;
-                    const originalUseAdaptivePlay = useAdaptivePlay;
-                    const originalUseTableChangeWarnings = useTableChangeWarnings;
-                    const originalUseDueForHit = useDueForHit;
-                    const originalUseNeighbourFocus = originalUseNeighbourFocus;
-                    const originalUseLessStrict = useLessStrict;
-                    const originalUseDynamicTerminalNeighbourCount = useDynamicTerminalNeighbourCount;
-
-
                     history = []; 
                     confirmedWinsLog = []; 
                     patternMemory = {}; 
                     
+                    // IMPORTANT: Reset strategyStates and adaptiveFactorInfluences for a fresh simulation
                     strategyStates = {
                         weightedZone: { weight: 1.0, name: 'Neighbour Weighting' },
                         proximityBoost: { weight: 1.0, name: 'Proximity Boost' }
@@ -2065,6 +2112,9 @@
                         const boardStatsAtCalc = getBoardStateStats(history); 
                         const neighbourScoresAtCalc = runNeighbourAnalysis(false, history); 
 
+                        // AI predictions are generally not performed step-by-step during historical analysis 
+                        // for efficiency, as it would require retraining/predicting at each step.
+                        // Instead, the AI is trained once at the end on the full history.
                         const recommendationAtCalc = getRecommendation(
                             trendStatsAtCalc,
                             boardStatsAtCalc,
@@ -2169,29 +2219,6 @@
                     if (DEBUG_MODE) {
                         console.log('Historical analysis with simulation complete. Final history array:', history);
                     }
-
-                    // Restore original state if optimization is running, so next combination starts clean
-                    if (isOptimizing) {
-                        history = originalHistory;
-                        confirmedWinsLog = originalConfirmedWinsLog;
-                        patternMemory = originalPatternMemory;
-                        Object.assign(strategyStates, originalStrategyStates);
-                        Object.assign(adaptiveFactorInfluences, originalAdaptiveFactorInfluences);
-                        useTrendConfirmation = originalUseTrendConfirmation;
-                        useWeightedZone = originalUseWeightedZone;
-                        useProximityBoost = originalUseProximityBoost;
-                        usePocketDistance = originalUsePocketDistance;
-                        useLowestPocketDistance = originalUseLowestPocketDistance;
-                        useAdvancedCalculations = originalUseAdvancedCalculations;
-                        useDynamicStrategy = originalUseDynamicStrategy;
-                        useAdaptivePlay = originalUseAdaptivePlay;
-                        useTableChangeWarnings = originalUseTableChangeWarnings;
-                        useDueForHit = originalUseDueForHit;
-                        useNeighbourFocus = originalUseNeighbourFocus;
-                        useLessStrict = originalUseLessStrict;
-                        useDynamicTerminalNeighbourCount = originalUseDynamicTerminalNeighbourCount;
-                    }
-
                 }
                 
                 function handleImageUpload(event) {
@@ -2964,20 +2991,6 @@
 
                         // Sync slider to number input and vice versa
                         const updateValue = (sourceElement, targetElement, targetProp) => {
-                            // Only update if not optimizing
-                            if (isOptimizing) {
-                                console.warn('Cannot update parameter while optimization is running.');
-                                dom.parameterStatusMessage.textContent = 'Cannot adjust parameters during optimization.';
-                                // Revert input element to its current actual value
-                                targetElement.value = paramObj[paramName]; 
-                                if (sourceElement.type === 'range') {
-                                    numberInput.value = paramObj[paramName];
-                                } else if (sourceElement.type === 'number') {
-                                    slider.value = paramObj[paramName];
-                                }
-                                return;
-                            }
-
                             let val = parseFloat(sourceElement.value);
                             // Determine the correct default value source based on paramObj
                             let defaultValueSource = 0; // Default fallback
@@ -3045,12 +3058,6 @@
 
                     // Resets all parameters (STRATEGY_CONFIG, ADAPTIVE_LEARNING_RATES, and Toggles) to their default values.
                     function resetAllParameters() {
-                        // Only allow reset if not optimizing
-                        if (isOptimizing) {
-                            dom.parameterStatusMessage.textContent = 'Cannot reset parameters while optimization is running.';
-                            return;
-                        }
-
                         if (DEBUG_MODE) console.log('Resetting all parameters to defaults.');
                         Object.assign(STRATEGY_CONFIG, DEFAULT_PARAMETERS.STRATEGY_CONFIG);
                         Object.assign(ADAPTIVE_LEARNING_RATES, DEFAULT_PARAMETERS.ADAPTIVE_LEARNING_RATES);
@@ -3073,12 +3080,6 @@
 
                     // Saves current parameter values and toggle states to a JSON file for download.
                     function saveParametersToFile() {
-                        // Only allow save if not optimizing
-                        if (isOptimizing) {
-                            dom.parameterStatusMessage.textContent = 'Cannot save parameters while optimization is running.';
-                            return;
-                        }
-
                         if (DEBUG_MODE) console.log('Saving parameters to file.');
                         const parametersToSave = {
                             STRATEGY_CONFIG: STRATEGY_CONFIG,
@@ -3104,13 +3105,6 @@
 
                     // Loads parameter values and toggle states from a selected JSON file.
                     async function loadParametersFromFile(event) {
-                        // Only allow load if not optimizing
-                        if (isOptimizing) {
-                            dom.parameterStatusMessage.textContent = 'Cannot load parameters while optimization is running.';
-                            event.target.value = ''; // Clear file input
-                            return;
-                        }
-
                         if (DEBUG_MODE) console.log('Loading parameters from file.');
                         const file = event.target.files[0];
                         if (!file) {
@@ -3210,269 +3204,123 @@
                     });
 
 
-                    // --- NEW: Client-Side Strategy Optimizer Functions ---
+                    // --- Event Listeners and Initial Load ---
 
-                    // Function to disable/enable UI elements during optimization
-                    function toggleOptimizationUI(disable) {
-                        isOptimizing = disable; // Update global state flag
-                        
-                        // Disable/Enable sliders and their number inputs
-                        document.querySelectorAll('.slider-group input[type="range"], .slider-group input[type="number"]').forEach(input => {
-                            input.disabled = disable;
-                        });
-                        // Disable/Enable toggles
-                        document.querySelectorAll('.toggle-checkbox').forEach(checkbox => {
-                            checkbox.disabled = disable;
-                        });
+                    document.addEventListener('click', function(event) {
+                        // Core calculator buttons
+                        if (event.target.id === 'calculateButton') handleCalculation();
+                        else if (event.target.id === 'clearInputsButton') handleClearInputs();
+                        else if (event.target.closest('#swapButton')) handleSwap();
+                        else if (event.target.id === 'clearHistoryButton') handleClearHistory();
+                        else if (event.target.closest('.delete-btn')) handleHistoryAction(event);
+                        else if (event.target.id === 'analyzeHistoricalDataButton') handleHistoricalAnalysis();
+                        else if (event.target.id === 'recalculateAnalysisButton') runAllAnalyses();
+                        else if (event.target.id === 'analyzeVideoButton') startVideoAnalysis();
+                        else if (event.target.id === 'clearVideoButton') clearVideoState();
+                        // Preset Strategy buttons
+                        else if (event.target.id === 'setHighestWinRatePreset') handlePresetSelection('highestWinRate');
+                        else if (event.target.id === 'setBalancedSafePreset') handlePresetSelection('balancedSafe');
+                        else if (event.target.id === 'setAggressiveSignalsPreset') handlePresetSelection('aggressiveSignals');
+                        // NEW: Advanced Settings Buttons - Click Listeners
+                        else if (event.target.id === 'resetParametersButton') resetAllParameters();
+                        else if (event.target.id === 'saveParametersButton') saveParametersToFile();
+                    });
+                    
+                    dom.imageUpload.addEventListener('change', handleImageUpload);
+                    dom.videoUpload.addEventListener('change', handleVideoUpload);
+                    // NEW: Load Parameters from File Listener
+                    dom.loadParametersInput.addEventListener('change', loadParametersFromFile);
 
-                        // Disable/Enable buttons related to parameter changes or manual inputs
-                        dom.resetParametersButton.disabled = disable;
-                        dom.saveParametersButton.disabled = disable;
-                        dom.loadParametersInput.disabled = disable;
-                        dom.loadParametersLabel.classList.toggle('cursor-not-allowed', disable);
-                        dom.loadParametersLabel.classList.toggle('opacity-50', disable);
-
-                        dom.historicalNumbersInput.disabled = disable;
-                        dom.imageUpload.disabled = disable;
-                        dom.imageUploadLabel.classList.toggle('cursor-not-allowed', disable);
-                        dom.imageUploadLabel.classList.toggle('opacity-50', disable);
-                        dom.analyzeHistoricalDataButton.disabled = disable;
-                        dom.clearHistoryButton.disabled = disable;
-
-                        // Change optimize button text/state
-                        if (disable) {
-                            dom.optimizeStrategyButton.textContent = 'Optimizing... (Click to Stop)';
-                            dom.optimizeStrategyButton.classList.add('btn-secondary');
-                            dom.optimizeStrategyButton.classList.remove('btn-primary');
-                            // Also disable other preset buttons
-                            dom.setHighestWinRatePreset.disabled = true;
-                            dom.setBalancedSafePreset.disabled = true;
-                            dom.setAggressiveSignalsPreset.disabled = true;
+                    // Toggle Checkbox Listeners (now trigger handleHistoricalAnalysis when applicable)
+                    dom.trendConfirmationToggle.addEventListener('change', (e) => { useTrendConfirmation = e.target.checked; saveState(); handleHistoricalAnalysis(); });
+                    dom.weightedZoneToggle.addEventListener('change', (e) => { useWeightedZone = e.target.checked; saveState(); handleHistoricalAnalysis(); });
+                    dom.proximityBoostToggle.addEventListener('change', (e) => { useProximityBoost = e.target.checked; saveState(); handleHistoricalAnalysis(); });
+                    dom.pocketDistanceToggle.addEventListener('change', (e) => { usePocketDistance = e.target.checked; saveState(); renderHistory(); }); // Does not require full re-analysis, just history render
+                    dom.lowestPocketDistanceToggle.addEventListener('change', (e) => { useLowestPocketDistance = e.target.checked; saveState(); handleHistoricalAnalysis(); });
+                    dom.advancedCalculationsToggle.addEventListener('change', async (e) => {
+                        useAdvancedCalculations = e.target.checked;
+                        updateActivePredictionTypes(); // This updates activePredictionTypes for AI worker too
+                        saveState();
+                        runAllAnalyses(); // This updates visual analysis
+                        renderHistory(); // Re-render history for visual updates
+                        // Re-draw wheel if numbers are present to update highlights based on new active types
+                        const num1Val = parseInt(dom.number1.value, 10);
+                        const num2Val = parseInt(dom.number2.value, 10);
+                        const lastWinningNumber = confirmedWinsLog.length > 0 ? confirmedWinsLog[confirmedWinsLog.length -1] : null;
+                        if (!isNaN(num1Val) && !isNaN(num2Val)) {
+                            drawRouletteWheel(Math.abs(num2Val - num1Val), lastWinningNumber);
                         } else {
-                            dom.optimizeStrategyButton.textContent = 'Optimize Strategy';
-                            dom.optimizeStrategyButton.classList.add('btn-primary');
-                            dom.optimizeStrategyButton.classList.remove('btn-secondary');
-                            // Re-enable other preset buttons
-                            dom.setHighestWinRatePreset.disabled = false;
-                            dom.setBalancedSafePreset.disabled = false;
-                            dom.setAggressiveSignalsPreset.disabled = false;
+                            drawRouletteWheel(null, lastWinningNumber);
                         }
-                        dom.optimizeStrategyButton.disabled = false; // Always allow stopping if it's running
-                    }
-
-                    // Main client-side optimization logic
-                    async function runClientSideOptimization() {
-                        if (isOptimizing) {
-                            // If already optimizing, this click means "stop"
-                            toggleOptimizationUI(false);
-                            dom.parameterStatusMessage.textContent = 'Optimization stopped by user.';
-                            // No need to restore parameters here, as handleHistoricalAnalysis does it internally if isOptimizing is true
-                            return;
-                        }
-
-                        // Start optimization
-                        toggleOptimizationUI(true);
-                        dom.parameterStatusMessage.textContent = 'Optimization started. Please wait...';
-
-                        // Store the current input numbers from the textarea
-                        const originalHistoricalNumbers = dom.historicalNumbersInput.value;
-                        if (!originalHistoricalNumbers.trim()) {
-                            dom.parameterStatusMessage.textContent = 'Error: Please provide historical numbers to optimize.';
-                            toggleOptimizationUI(false);
-                            return;
-                        }
-
-                        let bestOverallScore = -Infinity;
-                        let bestParametersFound = null;
-                        let combinationsTested = 0;
-                        const MAX_COMBINATIONS_TO_TEST = 1000; // Increased limit for better search
-
-                        // --- Define Parameter Search Space for Random Search ---
-                        const parameterSearchSpace = {
-                            STRATEGY_CONFIG: {
-                                learningRate_success: { min: 0.01, max: 1.0, step: 0.01 },
-                                learningRate_failure: { min: 0.01, max: 0.5, step: 0.01 },
-                                maxWeight: { min: 1.0, max: 10.0, step: 0.1 },
-                                minWeight: { min: 0.0, max: 1.0, step: 0.01 },
-                                decayFactor: { min: 0.7, max: 0.99, step: 0.01 },
-                                patternMinAttempts: { min: 1, max: 20, step: 1 },
-                                patternSuccessThreshold: { min: 50, max: 100, step: 1 },
-                                triggerMinAttempts: { min: 1, max: 20, step: 1 },
-                                triggerSuccessThreshold: { min: 50, max: 100, step: 1 },
-                            },
-                            ADAPTIVE_LEARNING_RATES: {
-                                SUCCESS: { min: 0.01, max: 0.5, step: 0.01 },
-                                FAILURE: { min: 0.01, max: 0.5, step: 0.01 },
-                                MIN_INFLUENCE: { min: 0.0, max: 1.0, step: 0.01 },
-                                MAX_INFLUENCE: { min: 1.0, max: 5.0, step: 0.1 },
-                            },
-                            TOGGLES: [ // Array of toggle names
-                                'useTrendConfirmation', 'useWeightedZone', 'useProximityBoost', 'usePocketDistance', 'useLowestPocketDistance',
-                                'useAdvancedCalculations', 'useDynamicStrategy', 'useAdaptivePlay', 'useTableChangeWarnings',
-                                'useDueForHit', 'useNeighbourFocus', 'useLessStrict', 'useDynamicTerminalNeighbourCount'
-                            ]
-                        };
-
-                        // Store the initial parameter state before starting optimization
-                        const initialParams = {
-                            STRATEGY_CONFIG: JSON.parse(JSON.stringify(STRATEGY_CONFIG)),
-                            ADAPTIVE_LEARNING_RATES: JSON.parse(JSON.stringify(ADAPTIVE_LEARNING_RATES)),
-                            TOGGLES: {}
-                        };
-                        parameterSearchSpace.TOGGLES.forEach(toggleName => {
-                            initialParams.TOGGLES[toggleName] = window[toggleName];
-                        });
-
-                        // --- Random Search Loop ---
-                        for (let i = 0; i < MAX_COMBINATIONS_TO_TEST; i++) {
-                            if (!isOptimizing) { // Check if user stopped it
-                                break; 
-                            }
-
-                            combinationsTested++;
-                            dom.parameterStatusMessage.textContent = `Optimizing... Testing combination ${combinationsTested}/${MAX_COMBINATIONS_TO_TEST}.`;
-
-                            // Generate a random set of parameters
-                            const currentTrialParams = {
-                                STRATEGY_CONFIG: {},
-                                ADAPTIVE_LEARNING_RATES: {},
-                                TOGGLES: {}
-                            };
-
-                            // Randomize STRATEGY_CONFIG parameters
-                            for (const paramName in parameterSearchSpace.STRATEGY_CONFIG) {
-                                const { min, max, step } = parameterSearchSpace.STRATEGY_CONFIG[paramName];
-                                currentTrialParams.STRATEGY_CONFIG[paramName] = parseFloat((Math.random() * (max - min) + min).toFixed(2));
-                            }
-                            // Randomize ADAPTIVE_LEARNING_RATES parameters
-                            for (const paramName in parameterSearchSpace.ADAPTIVE_LEARNING_RATES) {
-                                const { min, max, step } = parameterSearchSpace.ADAPTIVE_LEARNING_RATES[paramName];
-                                currentTrialParams.ADAPTIVE_LEARNING_RATES[paramName] = parseFloat((Math.random() * (max - min) + min).toFixed(2));
-                            }
-                            // Randomize TOGGLES
-                            parameterSearchSpace.TOGGLES.forEach(toggleName => {
-                                currentTrialParams.TOGGLES[toggleName] = Math.random() > 0.5;
-                            });
-
-                            // Apply this random set of parameters to global variables
-                            Object.assign(STRATEGY_CONFIG, currentTrialParams.STRATEGY_CONFIG);
-                            Object.assign(ADAPTIVE_LEARNING_RATES, currentTrialParams.ADAPTIVE_LEARNING_RATES);
-                            Object.keys(currentTrialParams.TOGGLES).forEach(key => {
-                                if (window.hasOwnProperty(key)) {
-                                    window[key] = currentTrialParams.TOGGLES[key];
-                                }
-                            });
-
-                            // Re-initialize UI to reflect these temporary parameters (optional, but good for visual feedback if optimization is paused)
-                            updateAllTogglesUI();
-                            initializeAdvancedSettingsUI();
-                            // saveState(); // No need to save to localStorage repeatedly during optimization runs
-
-                            // Set historical input data to the original set for each trial
-                            dom.historicalNumbersInput.value = originalHistoricalNumbers;
-                            
-                            // Perform a conceptual historical analysis run for these parameters
-                            // This will modify global `history`, `wins`, `losses`, etc.
-                            await handleHistoricalAnalysis(); 
-
-                            // After handleHistoricalAnalysis completes, get the results
-                            const currentWins = parseInt(dom.winCount.textContent, 10);
-                            const currentLosses = parseInt(dom.lossCount.textContent, 10);
-                            const totalPlays = currentWins + currentLosses;
-                            const currentWinRate = totalPlays > 0 ? (currentWins / totalPlays) : 0;
-                            
-                            // Calculate other metrics for the composite objective score
-                            const currentRecFrequency = (history.filter(item => item.recommendedGroupId !== null).length / history.length); 
-                            
-                            let maxConsecutiveLosses = 0;
-                            let currentConsecutiveLosses = 0;
-                            // History is reversed for display, so iterate normally to find consecutive losses in order of occurrence
-                            const tempHistoryForLossStreak = [...history].reverse(); // Get chronological history
-                            for (let k = 0; k < tempHistoryForLossStreak.length; k++) {
-                                if (tempHistoryForLossStreak[k].status === 'fail' && tempHistoryForLossStreak[k].recommendedGroupId !== null) { // Only count losses on recommended plays
-                                    currentConsecutiveLosses++;
-                                } else {
-                                    maxConsecutiveLosses = Math.max(maxConsecutiveLosses, currentConsecutiveLosses);
-                                    currentConsecutiveLosses = 0;
-                                }
-                            }
-                            maxConsecutiveLosses = Math.max(maxConsecutiveLosses, currentConsecutiveLosses); // Final check after loop
-
-                            let strongPlayReliability = 0;
-                            const strongPlayRecommendations = history.filter(item => item.recommendationDetails?.signal === 'Strong Play');
-                            if (strongPlayRecommendations.length > 0) {
-                                const strongPlayWins = strongPlayRecommendations.filter(item => item.status === 'success').length;
-                                strongPlayReliability = (strongPlayWins / strongPlayRecommendations.length);
-                            }
-
-                            // Define the composite score (fitness function)
-                            // This score needs to be maximized. Adjust weights based on objective priorities.
-                            let compositeScore = (currentWinRate * 100) // Maximize win rate (e.g., 45 -> 45 points)
-                                + (currentRecFrequency * 10) // Reward frequency of recommendations (0-1 -> 0-10 points)
-                                - (maxConsecutiveLosses * 2) // Penalize max consecutive losses (e.g., 5 losses -> -10 points)
-                                + (strongPlayReliability * 20); // Reward strong play reliability (0-1 -> 0-20 points)
-                            
-                            // Optional: Add a penalty if total plays are too low (meaning too few recommendations)
-                            if (totalPlays < (originalHistoricalNumbers.split(/[\s,]+/).filter(Boolean).map(Number).length * 0.5)) { // If less than 50% of spins generated a play
-                                compositeScore -= 15; // Significant penalty
-                            }
-
-                            if (DEBUG_MODE) console.log(`Trial ${combinationsTested}: WinRate: ${currentWinRate.toFixed(2)}%, MaxLosses: ${maxConsecutiveLosses}, RecFreq: ${currentRecFrequency.toFixed(2)}, StrongPlayRel: ${strongPlayReliability.toFixed(2)} -> Composite Score: ${compositeScore.toFixed(2)}`);
-
-                            if (compositeScore > bestOverallScore) {
-                                bestOverallScore = compositeScore;
-                                bestParametersFound = {
-                                    STRATEGY_CONFIG: JSON.parse(JSON.stringify(STRATEGY_CONFIG)), // Deep copy
-                                    ADAPTIVE_LEARNING_RATES: JSON.parse(JSON.stringify(ADAPTIVE_LEARNING_RATES)), // Deep copy
-                                    TOGGLES: {}
-                                };
-                                parameterSearchSpace.TOGGLES.forEach(toggleName => {
-                                    bestParametersFound.TOGGLES[toggleName] = window[toggleName];
-                                });
-                                bestParametersFound.performance = { currentWins, currentLosses, currentWinRate, maxConsecutiveLosses, currentRecFrequency, strongPlayReliability, compositeScore };
-                                
-                                dom.parameterStatusMessage.textContent = `Optimizing... Best so far: WinRate ${(bestParametersFound.performance.currentWinRate * 100).toFixed(2)}% (Score: ${bestOverallScore.toFixed(2)}) | Tested: ${combinationsTested}`;
-                            }
-
-                            // Small delay to prevent UI freezing (important for client-side optimization)
-                            await new Promise(resolve => setTimeout(resolve, 10)); 
-                        } // End optimization loop
-
-                        // --- OPTIMIZATION COMPLETION ACTIONS ---
-                        toggleOptimizationUI(false); // Re-enable UI controls regardless of how optimization ended
-
-                        if (bestParametersFound) {
-                            dom.parameterStatusMessage.textContent = `Optimization Complete! Best Strategy Found (Score: ${bestParametersFound.performance.compositeScore.toFixed(2)})`;
-                            dom.parameterStatusMessage.textContent += ` | Win Rate: ${(bestParametersFound.performance.currentWinRate * 100).toFixed(2)}% (Wins: ${bestParametersFound.performance.currentWins}, Losses: ${bestParametersFound.performance.currentLosses})`;
-                            dom.parameterStatusMessage.textContent += ` | Max Consec Losses: ${bestParametersFound.performance.maxConsecutiveLosses.toFixed(0)}`;
-                            dom.parameterStatusMessage.textContent += ` | Strong Play Reliability: ${(bestParametersFound.performance.strongPlayReliability * 100).toFixed(2)}%`;
-                            dom.parameterStatusMessage.textContent += ` | Reco Frequency: ${(bestParametersFound.performance.currentRecFrequency * 100).toFixed(2)}%`;
-                            
-                            const applyConfirm = confirm(`Optimization found a better strategy!\n\nBest Win Rate: ${(bestParametersFound.performance.currentWinRate * 100).toFixed(2)}%\nMax Consecutive Losses: ${bestParametersFound.performance.maxConsecutiveLosses.toFixed(0)}\nStrong Play Reliability: ${(bestParametersFound.performance.strongPlayReliability * 100).toFixed(2)}%\nRecommendation Frequency: ${(bestParametersFound.performance.currentRecFrequency * 100).toFixed(2)}%\n\nApply these optimal parameters to your settings?`);
-                            
-                            if (applyConfirm) {
-                                Object.assign(STRATEGY_CONFIG, bestParametersFound.STRATEGY_CONFIG);
-                                Object.assign(ADAPTIVE_LEARNING_RATES, bestParametersFound.ADAPTIVE_LEARNING_RATES);
-                                Object.keys(bestParametersFound.TOGGLES).forEach(key => {
-                                    if (window.hasOwnProperty(key)) {
-                                        window[key] = bestParametersFound.TOGGLES[key];
-                                    }
-                                });
-                                updateAllTogglesUI(); // Update UI to reflect new applied parameters
-                                initializeAdvancedSettingsUI(); // Re-render sliders
-                                saveState();
-                                dom.parameterStatusMessage.textContent = 'Optimal parameters applied and saved!';
-                                // Run one final historical analysis with the optimal settings for display consistency
-                                handleHistoricalAnalysis(); 
-                            } else {
-                                dom.parameterStatusMessage.textContent = 'Optimal parameters not applied. Current settings retained.';
-                                // No change needed to UI or state, as original handleHistoricalAnalysis at the end of optimization loop implicitly restored
-                            }
+                    });
+                    dom.dynamicStrategyToggle.addEventListener('change', (e) => { useDynamicStrategy = e.target.checked; saveState(); handleHistoricalAnalysis(); });
+                    dom.adaptivePlayToggle.addEventListener('change', (e) => { useAdaptivePlay = e.target.checked; saveState(); handleHistoricalAnalysis(); });
+                    dom.tableChangeWarningsToggle.addEventListener('change', (e) => { useTableChangeWarnings = e.target.checked; saveState(); handleHistoricalAnalysis(); });
+                    dom.dueForHitToggle.addEventListener('change', (e) => { useDueForHit = e.target.checked; saveState(); handleHistoricalAnalysis(); });
+                    dom.neighbourFocusToggle.addEventListener('change', (e) => { useNeighbourFocus = e.target.checked; saveState(); handleHistoricalAnalysis(); });
+                    dom.lessStrictModeToggle.addEventListener('change', (e) => { useLessStrict = e.target.checked; saveState(); handleHistoricalAnalysis(); });
+                    dom.dynamicTerminalNeighbourCountToggle.addEventListener('change', (e) => {
+                        useDynamicTerminalNeighbourCount = e.target.checked;
+                        saveState();
+                        runAllAnalyses(); // Updates visual analysis
+                        renderHistory(); // Re-render history for visual updates
+                        // Re-draw wheel if numbers are present to update highlights based on new dynamic terminal count
+                        const num1Val = parseInt(dom.number1.value, 10);
+                        const num2Val = parseInt(dom.number2.value, 10);
+                        const lastWinningNumber = confirmedWinsLog.length > 0 ? confirmedWinsLog[confirmedWinsLog.length -1] : null;
+                        if (!isNaN(num1Val) && !isNaN(num2Val)) {
+                            drawRouletteWheel(Math.abs(num2Val - num1Val), lastWinningNumber);
                         } else {
-                            dom.parameterStatusMessage.textContent = 'Optimization completed, but no improvement found or no valid combinations tested.';
-                            // Ensure UI is re-rendered to original state in case it wasn't due to error
-                            updateAllTogglesUI();
-                            initializeAdvancedSettingsUI();
-                            handleHistoricalAnalysis();
+                            drawRouletteWheel(null, lastWinningNumber);
                         }
+                    });
+
+                    // Input field listeners for number 1 and 2
+                    [dom.number1, dom.number2].forEach(input => input.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') {
+                            handleCalculation();
+                        }
+                    }));
+                    
+                    // History Info Dropdown Toggle
+                    dom.historyInfoToggle.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        dom.historyInfoDropdown.classList.toggle('hidden');
+                    });
+
+                    // Close History Info Dropdown if click outside
+                    document.addEventListener('click', (e) => {
+                        if (dom.historyInfoDropdown && !dom.historyInfoDropdown.contains(e.target) && !dom.historyInfoToggle.contains(e.target)) {
+                            dom.historyInfoDropdown.classList.add('hidden');
+                        }
+                    });
+
+
+                    loadState(); // This will now also initialize the advanced settings UI
+                    runAllAnalyses();
+                    renderHistory();
+                    const initialNum1 = parseInt(dom.number1.value, 10);
+                    const initialNum2 = parseInt(dom.number2.value, 10);
+                    const lastWinningNumberOnLoad = confirmedWinsLog.length > 0 ? confirmedWinsLog[confirmedWinsLog.length -1] : null;
+                    if (!isNaN(initialNum1) && !isNaN(initialNum2)) {
+                        drawRouletteWheel(Math.abs(initialNum2 - initialNum1), lastWinningNumberOnLoad);
+                    } else {
+                        drawRouletteWheel(null, lastWinningNumberOnLoad);
                     }
+                } catch (error) {
+                    if (DEBUG_MODE) {
+                        console.error('Error during DOMContentLoaded setup:', error);
+                    }
+                    const mainContent = document.querySelector('main');
+                    if (mainContent) {
+                        mainContent.innerHTML = `<div class="card p-8 text-center text-red-600 font-bold text-xl">
+                            <p>An critical error occurred during application startup.</p>
+                            <p>Please check the browser's developer console (F12) for details.</p>
+                            <p>Error: ${error.message}</p>
+                        </div>`;
+                    }
+                }
+            });
+        </script>
+    </body>
+    </html>
