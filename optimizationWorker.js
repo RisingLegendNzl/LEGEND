@@ -129,19 +129,26 @@ function calculateFitness(individual) {
     let tempConfirmedWinsLog = [];
 
     for (const rawItem of sortedHistory) {
+         // ADDED: Check isRunning frequently within the fitness calculation loop
+        if (!isRunning) return 0; // Return 0 or a very low fitness if stopped mid-calculation
+
          if (rawItem.winningNumber === null) continue;
 
         // Simulate the state *before* this spin happened
         const historyForCalc = simulatedHistory.slice();
-        const trendStats = simulationHelpers.calculateTrendStats(historyForCalc, STRATEGY_CONFIG, simulationHelpers.allPredictionTypes);
-        const boardStats = simulationHelpers.getBoardStateStats(historyForCalc, STRATEGY_CONFIG);
-        const neighbourScores = simulationHelpers.runNeighbourAnalysis(false, historyForCalc, STRATEGY_CONFIG);
+        // Pass STRATEGY_CONFIG to helper functions that use it
+        const trendStats = simulationHelpers.calculateTrendStats(historyForCalc, simulationHelpers.allPredictionTypes, STRATEGY_CONFIG.decayFactor); // Modified here
+        const boardStats = simulationHelpers.getBoardStateStats(historyForCalc, STRATEGY_CONFIG.decayFactor); // Modified here
+        const neighbourScores = simulationHelpers.runNeighbourAnalysis(false, historyForCalc, STRATEGY_CONFIG.decayFactor); // Modified here
 
+        // Also pass STRATEGY_CONFIG and ADAPTIVE_LEARNING_RATES to getRecommendation as it relies on global STRATEGY_CONFIG
         const recommendation = simulationHelpers.getRecommendation(
             trendStats, boardStats, neighbourScores,
             rawItem.difference, rawItem.num1, rawItem.num2,
             false, null, tempAdaptiveInfluences,
-            tempConfirmedWinsLog.length > 0 ? tempConfirmedWinsLog[tempConfirmedWinsLog.length - 1] : null
+            tempConfirmedWinsLog.length > 0 ? tempConfirmedWinsLog[tempConfirmedWinsLog.length - 1] : null,
+            STRATEGY_CONFIG, // Pass STRATEGY_CONFIG
+            ADAPTIVE_LEARNING_RATES // Pass ADAPTIVE_LEARNING_RATES
         );
 
         const simItem = { ...rawItem };
@@ -162,23 +169,31 @@ function calculateFitness(individual) {
             const wasSuccess = simItem.hitTypes.includes(simItem.recommendedGroupId);
 
             // Update strategy weights
-            if (wasSuccess) {
-                tempStrategyStates.weightedZone.weight = Math.min(STRATEGY_CONFIG.maxWeight, tempStrategyStates.weightedZone.weight + STRATEGY_CONFIG.learningRate_success);
-                tempStrategyStates.proximityBoost.weight = Math.min(STRATEGY_CONFIG.maxWeight, tempStrategyStates.proximityBoost.weight + STRATEGY_CONFIG.learningRate_success);
-            } else {
-                tempStrategyStates.weightedZone.weight = Math.max(STRATEGY_CONFIG.minWeight, tempStrategyStates.weightedZone.weight - STRATEGY_CONFIG.learningRate_failure);
-                tempStrategyStates.proximityBoost.weight = Math.max(STRATEGY_CONFIG.minWeight, tempStrategyStates.proximityBoost.weight - STRATEGY_CONFIG.learningRate_failure);
-            }
+            // Ensure tempStrategyStates exists
+            if (!tempStrategyStates.weightedZone) tempStrategyStates.weightedZone = { weight: 1.0 };
+            if (!tempStrategyStates.proximityBoost) tempStrategyStates.proximityBoost = { weight: 1.0 };
+
+            // These updates should be based on the individual's parameters (STRATEGY_CONFIG derived from 'individual')
+            tempStrategyStates.weightedZone.weight = wasSuccess
+                ? Math.min(STRATEGY_CONFIG.maxWeight, tempStrategyStates.weightedZone.weight + STRATEGY_CONFIG.learningRate_success)
+                : Math.max(STRATEGY_CONFIG.minWeight, tempStrategyStates.weightedZone.weight - STRATEGY_CONFIG.learningRate_failure);
+            
+            tempStrategyStates.proximityBoost.weight = wasSuccess
+                ? Math.min(STRATEGY_CONFIG.maxWeight, tempStrategyStates.proximityBoost.weight + STRATEGY_CONFIG.learningRate_success)
+                : Math.max(STRATEGY_CONFIG.minWeight, tempStrategyStates.proximityBoost.weight - STRATEGY_CONFIG.learningRate_failure);
+
 
             // Update adaptive influences
             if (simItem.recommendationDetails?.primaryDrivingFactor) {
                  const primaryFactor = simItem.recommendationDetails.primaryDrivingFactor;
-                 if (tempAdaptiveInfluences[primaryFactor] !== undefined) {
-                     if (wasSuccess) {
-                        tempAdaptiveInfluences[primaryFactor] = Math.min(ADAPTIVE_LEARNING_RATES.MAX_INFLUENCE, tempAdaptiveInfluences[primaryFactor] + ADAPTIVE_LEARNING_RATES.SUCCESS);
-                     } else {
-                        tempAdaptiveInfluences[primaryFactor] = Math.max(ADAPTIVE_LEARNING_RATES.MIN_INFLUENCE, tempAdaptiveInfluences[primaryFactor] - ADAPTIVE_LEARNING_RATES.FAILURE);
-                     }
+                 // Ensure tempAdaptiveInfluences has the factor initialized
+                 if (tempAdaptiveInfluences[primaryFactor] === undefined) {
+                     tempAdaptiveInfluences[primaryFactor] = 1.0;
+                 }
+                 if (wasSuccess) {
+                    tempAdaptiveInfluences[primaryFactor] = Math.min(ADAPTIVE_LEARNING_RATES.MAX_INFLUENCE, tempAdaptiveInfluences[primaryFactor] + ADAPTIVE_LEARNING_RATES.SUCCESS);
+                 } else {
+                    tempAdaptiveInfluences[primaryFactor] = Math.max(ADAPTIVE_LEARNING_RATES.MIN_INFLUENCE, tempAdaptiveInfluences[primaryFactor] - ADAPTIVE_LEARNING_RATES.FAILURE);
                  }
             }
         }
@@ -210,17 +225,21 @@ async function runEvolution() {
     }
 
     // Main loop for generations
-    while (isRunning && generationCount < GA_CONFIG.maxGenerations) { //
+    while (isRunning && generationCount < GA_CONFIG.maxGenerations) {
         generationCount++;
 
         // 2. Calculate fitness for each individual
         for (const p of population) {
-            if (!isRunning) break; // Check for stop command before calculating each fitness
+            if (!isRunning) { // Check for stop command before calculating each fitness
+                self.postMessage({ type: 'stopped' }); // Inform main thread that we stopped
+                return; // Exit the function immediately
+            }
             p.fitness = calculateFitness(p.individual);
         }
 
-        if (!isRunning) { // If stopped during fitness calculation, exit early
-            break;
+        if (!isRunning) { // Redundant check, but harmless if the inner loop return is missed
+            self.postMessage({ type: 'stopped' });
+            return;
         }
 
         // Sort by fitness (descending)
@@ -247,7 +266,10 @@ async function runEvolution() {
 
         // 4. Crossover & Mutation
         while (newPopulation.length < GA_CONFIG.populationSize) {
-            if (!isRunning) break; // Check for stop command during population generation
+            if (!isRunning) { // Check for stop command during population generation
+                self.postMessage({ type: 'stopped' }); // Inform main thread that we stopped
+                return; // Exit the function immediately
+            }
             const parent1 = selectParent(population);
             const parent2 = selectParent(population);
             let child;
@@ -265,7 +287,8 @@ async function runEvolution() {
         population = newPopulation;
     }
 
-    if (isRunning) { // Completed naturally
+    // If loop finishes naturally
+    if (isRunning) { // This condition checks if it finished due to maxGenerations, not a stop command
         self.postMessage({
             type: 'complete',
             payload: {
@@ -274,10 +297,8 @@ async function runEvolution() {
                 bestIndividual: population[0].individual
             }
         });
-    } else { // Was stopped manually
-        self.postMessage({ type: 'stopped' });
     }
-    isRunning = false;
+    isRunning = false; // Ensure isRunning is false at the end
 }
 
 // --- WEB WORKER MESSAGE HANDLER ---
@@ -291,17 +312,80 @@ self.onmessage = (event) => {
             // The main thread sends us the helper functions it uses for simulation
             // We must deserialize them from strings.
             simulationHelpers = {
-                calculateTrendStats: new Function('return ' + payload.helpers.calculateTrendStats) (),
-                getBoardStateStats: new Function('return ' + payload.helpers.getBoardStateStats) (),
-                getRecommendation: new Function('return ' + payload.helpers.getRecommendation) (),
-                runNeighbourAnalysis: new Function('return ' + payload.helpers.runNeighbourAnalysis) (),
-                getHitZone: new Function('return ' + payload.helpers.getHitZone) (),
-                getNeighbours: new Function('return ' + payload.helpers.getNeighbours) (),
-                calculatePocketDistance: new Function('return ' + payload.helpers.calculatePocketDistance) (),
-                allPredictionTypes: payload.helpers.allPredictionTypes,
+                // Modified helper function deserialization to pass STRATEGY_CONFIG and ADAPTIVE_LEARNING_RATES
+                // where needed, as these are now dynamic based on the individual.
+                // The new Function constructor is used to re-create the functions from their string representations.
+                calculateTrendStats: new Function('currentHistory', 'activeTypes', 'decayFactor', 'STRATEGY_CONFIG', 'return ' + payload.helpers.calculateTrendStats.substring(payload.helpers.calculateTrendStats.indexOf('{') + 1, payload.helpers.calculateTrendStats.lastIndexOf('}')))(),
+                getBoardStateStats: new Function('simulatedHistory', 'decayFactor', 'STRATEGY_CONFIG', 'return ' + payload.helpers.getBoardStateStats.substring(payload.helpers.getBoardStateStats.indexOf('{') + 1, payload.helpers.getBoardStateStats.lastIndexOf('}')))(),
+                getRecommendation: new Function('trendStats', 'boardStats', 'neighbourScores', 'diff', 'inputNum1', 'inputNum2', 'isForWeightUpdate', 'aiPredictionData', 'currentAdaptiveInfluences', 'lastWinningNumber', 'STRATEGY_CONFIG', 'ADAPTIVE_LEARNING_RATES', 'return ' + payload.helpers.getRecommendation.substring(payload.helpers.getRecommendation.indexOf('{') + 1, payload.helpers.getRecommendation.lastIndexOf('}')))(),
+                runNeighbourAnalysis: new Function('render', 'simulatedHistory', 'decayFactor', 'STRATEGY_CONFIG', 'return ' + payload.helpers.runNeighbourAnalysis.substring(payload.helpers.runNeighbourAnalysis.indexOf('{') + 1, payload.helpers.runNeighbourAnalysis.lastIndexOf('}')))(),
+                getHitZone: new Function('baseNumber', 'terminals', 'winningNumber', 'useDynamicTerminalNeighbourCount', 'rouletteWheel', 'getNeighbours', 'return ' + payload.helpers.getHitZone.substring(payload.helpers.getHitZone.indexOf('{') + 1, payload.helpers.getHitZone.lastIndexOf('}')))(),
+                getNeighbours: new Function('number', 'count', 'rouletteWheel', 'return ' + payload.helpers.getNeighbours.substring(payload.helpers.getNeighbours.indexOf('{') + 1, payload.helpers.getNeighbours.lastIndexOf('}')))(),
+                calculatePocketDistance: new Function('num1', 'num2', 'rouletteWheel', 'return ' + payload.helpers.calculatePocketDistance.substring(payload.helpers.calculatePocketDistance.indexOf('{') + 1, payload.helpers.calculatePocketDistance.lastIndexOf('}')))(),
+                
+                allPredictionTypes: payload.helpers.allPredictionTypes, 
                 terminalMapping: payload.helpers.terminalMapping,
                 rouletteWheel: payload.helpers.rouletteWheel,
             };
+
+            // Bind constants to the helper functions after they are deserialized
+            // This ensures they have access to the necessary data from the worker's scope
+            simulationHelpers.calculateTrendStats = (currentHistory, activeTypes, decayFactor) => {
+                const originalFunction = new Function('STRATEGY_CONFIG', 'allPredictionTypes', 'return ' + payload.helpers.calculateTrendStats)();
+                return originalFunction.call(null, STRATEGY_CONFIG, activeTypes || simulationHelpers.allPredictionTypes); // Pass STRATEGY_CONFIG
+            };
+
+            simulationHelpers.getBoardStateStats = (simulatedHistory, decayFactor) => {
+                const originalFunction = new Function('STRATEGY_CONFIG', 'allPredictionTypes', 'return ' + payload.helpers.getBoardStateStats)();
+                return originalFunction.call(null, simulatedHistory, STRATEGY_CONFIG); // Pass STRATEGY_CONFIG
+            };
+            
+            simulationHelpers.runNeighbourAnalysis = (render, simulatedHistory, decayFactor) => {
+                const originalFunction = new Function('STRATEGY_CONFIG', 'allPredictionTypes', 'terminalMapping', 'rouletteWheel', 'getNeighbours', 'useDynamicTerminalNeighbourCount', 'return ' + payload.helpers.runNeighbourAnalysis)();
+                return originalFunction.call(null, render, simulatedHistory, STRATEGY_CONFIG, simulationHelpers.terminalMapping, simulationHelpers.rouletteWheel, simulationHelpers.getNeighbours, simulationHelpers.useDynamicTerminalNeighbourCount);
+            };
+
+            simulationHelpers.getRecommendation = (trendStats, boardStats, neighbourScores, diff, inputNum1, inputNum2, isForWeightUpdate, aiPredictionData, currentAdaptiveInfluences, lastWinningNumber, currentSTRATEGY_CONFIG, currentADAPTIVE_LEARNING_RATES) => {
+                // Ensure all necessary parameters and global-like variables are passed
+                const originalFunction = new Function(
+                    'trendStats', 'boardStats', 'neighbourScores', 'diff', 
+                    'inputNum1', 'inputNum2', 'isForWeightUpdate', 'aiPredictionData', 
+                    'currentAdaptiveInfluences', 'confirmedWinsLog', 
+                    'allPredictionTypes', 'terminalMapping', 'rouletteWheel', 
+                    'getHitZone', 'getNeighbours', 'calculatePocketDistance',
+                    'useProximityBoost', 'useWeightedZone', 'useNeighbourFocus', 'isAiReady', 'useTrendConfirmation',
+                    'STRATEGY_CONFIG_PARAM', 'ADAPTIVE_LEARNING_RATES_PARAM', // Renamed to avoid clash with local const
+                    'history', // Passed for trend confirmation logic
+                    'return ' + payload.helpers.getRecommendation)();
+
+                return originalFunction.call(null, 
+                    trendStats, boardStats, neighbourScores, diff, 
+                    inputNum1, inputNum2, isForWeightUpdate, aiPredictionData, 
+                    currentAdaptiveInfluences, historyData.filter(item => item.winningNumber !== null).map(item => item.winningNumber), // Pass current confirmedWinsLog from historyData
+                    simulationHelpers.allPredictionTypes, simulationHelpers.terminalMapping, simulationHelpers.rouletteWheel,
+                    simulationHelpers.getHitZone, simulationHelpers.getNeighbours, simulationHelpers.calculatePocketDistance,
+                    true, true, true, // Assuming these toggles are always true for optimization purposes
+                    false, // Assuming trend confirmation can be false for initial optimization flexibility
+                    currentSTRATEGY_CONFIG, currentADAPTIVE_LEARNING_RATES,
+                    historyData // Pass history for trend confirmation logic
+                );
+            };
+
+             simulationHelpers.getHitZone = (baseNumber, terminals, winningNumber, useDynamicTerminalNeighbourCount, rouletteWheel, getNeighbours) => {
+                const originalFunction = new Function('terminalMapping', 'rouletteWheel', 'getNeighbours', 'useDynamicTerminalNeighbourCount', 'return ' + payload.helpers.getHitZone)();
+                return originalFunction.call(null, baseNumber, terminals, winningNumber);
+            };
+
+            simulationHelpers.getNeighbours = (number, count) => {
+                const originalFunction = new Function('rouletteWheel', 'return ' + payload.helpers.getNeighbours)();
+                return originalFunction.call(null, number, count);
+            };
+
+            simulationHelpers.calculatePocketDistance = (num1, num2) => {
+                const originalFunction = new Function('rouletteWheel', 'return ' + payload.helpers.calculatePocketDistance)();
+                return originalFunction.call(null, num1, num2);
+            };
+            
             runEvolution();
             break;
 
