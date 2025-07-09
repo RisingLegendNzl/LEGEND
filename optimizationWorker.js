@@ -210,13 +210,17 @@ async function runEvolution() {
     }
 
     // Main loop for generations
-    while (isRunning && generationCount < GA_CONFIG.maxGenerations) {
+    while (isRunning && generationCount < GA_CONFIG.maxGenerations) { //
         generationCount++;
 
         // 2. Calculate fitness for each individual
         for (const p of population) {
-            if (!isRunning) break; // ADD THIS LINE to check for the stop command
+            if (!isRunning) break; // Check for stop command before calculating each fitness
             p.fitness = calculateFitness(p.individual);
+        }
+
+        if (!isRunning) { // If stopped during fitness calculation, exit early
+            break;
         }
 
         // Sort by fitness (descending)
@@ -230,7 +234,7 @@ async function runEvolution() {
                 maxGenerations: GA_CONFIG.maxGenerations,
                 bestFitness: population[0].fitness.toFixed(3),
                 bestIndividual: population[0].individual,
-                processedCount: generationCount * GA_CONFIG.populationSize // <-- ADD THIS LINE
+                processedCount: generationCount * GA_CONFIG.populationSize
             }
         });
 
@@ -243,6 +247,7 @@ async function runEvolution() {
 
         // 4. Crossover & Mutation
         while (newPopulation.length < GA_CONFIG.populationSize) {
+            if (!isRunning) break; // Check for stop command during population generation
             const parent1 = selectParent(population);
             const parent2 = selectParent(population);
             let child;
@@ -301,7 +306,7 @@ self.onmessage = (event) => {
             break;
 
         case 'stop':
-            isRunning = false;
+            isRunning = false; // Set isRunning to false to stop the loop
             break;
     }
 };
