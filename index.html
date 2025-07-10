@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <script src="shared-logic.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Automated Terminal Calculator</title>
@@ -854,121 +855,8 @@
         let activePredictionTypes = []; // This will be set based on useAdvancedCalculations
 
         // Pure helper functions - access global constants directly
-        function getNeighbours(number, count) {
-            const index = rouletteWheel.indexOf(number);
-            if (index === -1) return [];
-            const neighbours = new Set();
-            const wheelSize = rouletteWheel.length;
-            for (let i = 1; i <= count; i++) {
-                neighbours.add(rouletteWheel[(index - i + wheelSize) % wheelSize]);
-                neighbours.add(rouletteWheel[(index + i) % wheelSize]);
-            }
-            return Array.from(neighbours);
-        }
         
-        function calculatePocketDistance(num1, num2) {
-            const index1 = rouletteWheel.indexOf(num1);
-            const index2 = rouletteWheel.indexOf(num2);
-            if (index1 === -1 || index2 === -1) {
-                return Infinity;
-            }
-            const directDistance = Math.abs(index1 - index2);
-            const wrapAroundDistance = rouletteWheel.length - directDistance;
-            return Math.min(directDistance, wrapAroundDistance);
-        }
-
-        // Refactored to use global constants, accepts necessary toggles/configs as args
-        function getHitZone(baseNumber, terminals, winningNumber = null, useDynamicTerminalNeighbourCountBool) {
-            if (baseNumber < 0 || baseNumber > 36) return [];
-            const hitZone = new Set([baseNumber]);
-            const numTerminals = terminals ? terminals.length : 0;
-
-            let baseNeighbourCount = (numTerminals === 1) ? 3 : (numTerminals >= 2) ? 1 : 0;
-            if (baseNeighbourCount > 0) getNeighbours(baseNumber, baseNeighbourCount).forEach(n => hitZone.add(n));
-
-            let terminalNeighbourCount;
-            if (useDynamicTerminalNeighbourCountBool && winningNumber !== null) {
-                if (baseNumber === winningNumber || (terminals && terminals.includes(winningNumber))) {
-                    terminalNeighbourCount = 0;
-                } else {
-                    terminalNeighbourCount = (numTerminals === 1 || numTerminals === 2) ? 3 : (numTerminals > 2) ? 1 : 0;
-                }
-            } else {
-                terminalNeighbourCount = (numTerminals === 1 || numTerminals === 2) ? 3 : (numTerminals > 2) ? 1 : 0;
-            }
-
-            if (terminals && terminals.length > 0) {
-                terminals.forEach(t => {
-                    hitZone.add(t);
-                    if (terminalNeighbourCount > 0) getNeighbours(t, terminalNeighbourCount).forEach(n => hitZone.add(n));
-                });
-            }
-            return Array.from(hitZone);
-        }
-
-        function getRouletteNumberColor(number) {
-            if (number === 0) return 'green';
-            const redNumbers = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
-            if (redNumbers.includes(number)) return 'red';
-            return 'black';
-        }
-
-        /**
-         * Evaluates a history item against a winning number to determine its status (success/fail),
-         * which prediction types hit, and the pocket distance of the hit.
-         * @param {object} historyItem - The history item to evaluate.
-         * @param {number} winningNumber - The actual winning number for this spin.
-         * @param {object} current_STRATEGY_CONFIG - The strategy config to use.
-         * @param {boolean} useDynamicTerminalNeighbourCountBool - The toggle state to use.
-         */
-        function evaluateCalculationStatus(historyItem, winningNumber, current_STRATEGY_CONFIG, useDynamicTerminalNeighbourCountBool) {
-            historyItem.winningNumber = winningNumber;
-            historyItem.hitTypes = [];
-            historyItem.typeSuccessStatus = {};
-            let minPocketDistance = Infinity;
-
-            // Use the active prediction types for the evaluation
-            activePredictionTypes.forEach(type => {
-                const baseNum = type.calculateBase(historyItem.num1, historyItem.num2);
-                if (baseNum < 0 || baseNum > 36) {
-                    historyItem.typeSuccessStatus[type.id] = false;
-                    return;
-                }
-
-                const terminals = terminalMapping?.[baseNum] || [];
-                const hitZone = getHitZone(baseNum, terminals, winningNumber, useDynamicTerminalNeighbourCountBool);
-                
-                if (hitZone.includes(winningNumber)) {
-                    historyItem.hitTypes.push(type.id);
-                    historyItem.typeSuccessStatus[type.id] = true;
-
-                    // Calculate pocket distance for this successful hit
-                    let currentMinDist = Infinity;
-                    hitZone.forEach(zoneNum => {
-                        const dist = calculatePocketDistance(zoneNum, winningNumber);
-                        if (dist < currentMinDist) {
-                            currentMinDist = dist;
-                        }
-                    });
-                    if (currentMinDist < minPocketDistance) {
-                        minPocketDistance = currentMinDist;
-                    }
-                } else {
-                    historyItem.typeSuccessStatus[type.id] = false;
-                }
-            });
-
-            historyItem.status = historyItem.hitTypes.length > 0 ? 'success' : 'fail';
-            historyItem.pocketDistance = minPocketDistance !== Infinity ? minPocketDistance : null;
-            
-            // Specifically set the pocket distance for the recommended group if it hit
-            if (historyItem.recommendedGroupId && historyItem.hitTypes.includes(historyItem.recommendedGroupId)) {
-                historyItem.recommendedGroupPocketDistance = historyItem.pocketDistance;
-            } else {
-                historyItem.recommendedGroupPocketDistance = null;
-            }
-        }
-
+        // Core calculation logic is now loaded from shared-logic.js
         /**
          * Iterates through the history to label items with a specific failure mode.
          * This is primarily for providing more detailed data to the AI model.
